@@ -24,6 +24,10 @@ from services.repository_scanner import (
 from services.security_analyzer import (
     SecurityAnalyzer,
 )
+from services.bug_investigator import (
+    BugInvestigator,
+    InvestigationRequest,
+)
 
 
 app = FastAPI(
@@ -57,6 +61,7 @@ class IssueAIRequest(BaseModel):
 
 
 groq_service = GroqService()
+bug_investigator = BugInvestigator(groq_service)
 
 
 @app.get("/")
@@ -168,6 +173,43 @@ def generate_fix(
             detail=(
                 f"Unexpected AI error: {error}"
             ),
+        )
+
+
+@app.get("/api/investigate/scenarios")
+def get_investigation_scenarios():
+    """Return pre-configured bug scenarios with tests and code for one-click investigation."""
+    try:
+        scenarios = bug_investigator.get_sample_scenarios()
+        return {
+            "success": True,
+            "scenarios": scenarios,
+        }
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch sample scenarios: {error}",
+        )
+
+
+@app.post("/api/investigate/diagnose")
+def investigate_bug(
+    request: InvestigationRequest,
+):
+    """
+    Given a repository context, bug report, and available tests,
+    investigate the likely cause and provide an evidence-backed diagnosis.
+    """
+    try:
+        diagnosis = bug_investigator.diagnose(request)
+        return {
+            "success": True,
+            "diagnosis": diagnosis.model_dump(),
+        }
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Investigation failed: {error}",
         )
 
 

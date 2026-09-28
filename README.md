@@ -22,6 +22,22 @@ It combines a \*\*FastAPI backend\*\*, \*\*Next.js frontend\*\*, and \*\*Groq-po
 
 
 
+\### 🔬 Evidence-Backed Bug Diagnosis (BugLens)
+
+
+
+Given a repository, bug report, and available tests, investigates the likely cause, correlates runtime stack traces with failing test assertions, maps the execution propagation trace, and provides an evidence-backed diagnosis with verified patches and regression tests.
+
+
+
+\###  Apple Human Interface Guidelines (HIG)
+
+
+
+Crafted with Apple design principles: San Francisco typographic hierarchy, frosted glass vibrancy (`backdrop-blur-2xl`), macOS Sonoma/Sequoia style navigation, vibrant system accents, and tactile responsive controls.
+
+
+
 \### 🤖 AI-Powered Code Analysis
 
 

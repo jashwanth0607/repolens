@@ -63,10 +63,10 @@ export default function ReportDownloadButton({
     <button
       type="button"
       onClick={downloadReport}
-      className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-600"
+      className="inline-flex items-center gap-2 rounded-full bg-[#0A84FF] px-5 py-2.5 text-xs font-semibold text-white shadow-md shadow-[#0A84FF]/25 transition hover:bg-[#0071E3] active:scale-[0.98]"
     >
-      <Download className="h-4 w-4" />
-      Download Report
+      <Download className="h-3.5 w-3.5" />
+      Download JSON Report
     </button>
   );
 }

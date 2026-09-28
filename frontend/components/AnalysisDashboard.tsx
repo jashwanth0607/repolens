@@ -52,22 +52,22 @@ export default function AnalysisDashboard({
   return (
     <div className="space-y-6">
       {/* Repository header */}
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+      <div className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-8 backdrop-blur-2xl">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
-                <FileCode2 className="h-6 w-6 text-blue-400" />
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#0A84FF]/10 text-[#0A84FF]">
+                <FileCode2 className="h-6 w-6" />
               </div>
 
               <div className="min-w-0">
-                <h2 className="truncate text-xl font-bold text-white">
+                <h2 className="truncate text-xl font-semibold tracking-tight text-white">
                   {repository.full_name}
                 </h2>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-0.5 text-xs text-[#86868b]">
                   {repository.description ||
-                    "Repository analysis"}
+                    "Repository analysis & diagnostics"}
                 </p>
               </div>
             </div>
@@ -77,7 +77,7 @@ export default function AnalysisDashboard({
             href={repository.html_url}
             target="_blank"
             rel="noreferrer"
-            className="w-fit rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-300 transition hover:border-blue-500/40 hover:bg-blue-500/5 hover:text-white"
+            className="w-fit rounded-full border border-white/10 bg-white/[0.03] px-5 py-2 text-xs font-semibold text-white transition hover:bg-white/[0.08] active:scale-[0.98]"
           >
             Open Repository
           </a>
@@ -172,14 +172,14 @@ export default function AnalysisDashboard({
 
       {/* Severity + categories */}
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+        <section className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-7 backdrop-blur-xl">
           <div className="mb-5">
-            <h3 className="font-semibold text-white">
+            <h3 className="text-base font-semibold text-white">
               Severity Breakdown
             </h3>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Findings grouped by severity level.
+            <p className="mt-0.5 text-xs text-[#86868b]">
+              Findings categorized by risk severity level.
             </p>
           </div>
 
@@ -213,30 +213,30 @@ export default function AnalysisDashboard({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+        <section className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-7 backdrop-blur-xl">
           <div className="mb-5">
-            <h3 className="font-semibold text-white">
+            <h3 className="text-base font-semibold text-white">
               Finding Categories
             </h3>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Distribution of detected issue categories.
+            <p className="mt-0.5 text-xs text-[#86868b]">
+              Distribution of detected issue classifications.
             </p>
           </div>
 
           {categoryEntries.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {categoryEntries.map(
                 ([category, count]) => (
                   <div
                     key={category}
-                    className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-3"
+                    className="flex items-center justify-between rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs"
                   >
-                    <span className="text-sm text-slate-300">
+                    <span className="text-[#d1d5db]">
                       {category}
                     </span>
 
-                    <span className="rounded-full border border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-300">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 font-mono font-medium text-white">
                       {count}
                     </span>
                   </div>
@@ -244,7 +244,7 @@ export default function AnalysisDashboard({
               )}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-xs text-[#86868b]">
               No categories detected.
             </p>
           )}
@@ -252,19 +252,19 @@ export default function AnalysisDashboard({
       </div>
 
       {/* Dependencies */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+      <section className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-7 backdrop-blur-xl">
         <div className="mb-5 flex items-center gap-3">
-          <div className="rounded-xl bg-amber-500/10 p-3">
-            <Package className="h-5 w-5 text-amber-400" />
+          <div className="rounded-2xl bg-[#FF9F0A]/10 p-2.5 text-[#FF9F0A]">
+            <Package className="h-5 w-5" />
           </div>
 
           <div>
-            <h3 className="font-semibold text-white">
+            <h3 className="text-base font-semibold text-white">
               Dependency Summary
             </h3>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Detected project dependencies.
+            <p className="mt-0.5 text-xs text-[#86868b]">
+              Detected project package dependencies.
             </p>
           </div>
         </div>
@@ -290,7 +290,7 @@ export default function AnalysisDashboard({
       </section>
 
       {/* Findings */}
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+      <section className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-7 backdrop-blur-xl">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -1201,13 +1201,13 @@ function FilterButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-3 py-2 text-xs font-medium transition ${
+      className={`rounded-full px-4 py-1.5 text-xs font-medium transition active:scale-[0.98] ${
         active
-          ? "bg-blue-500 text-white"
-          : "border border-slate-700 text-slate-400 hover:border-slate-600 hover:text-white"
+          ? "bg-[#0A84FF] text-white shadow-md shadow-[#0A84FF]/25"
+          : "border border-white/10 bg-white/[0.03] text-[#86868b] hover:bg-white/[0.06] hover:text-white"
       }`}
     >
       {label}
     </button>
   );
-}
+}
