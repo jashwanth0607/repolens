@@ -60,17 +60,39 @@ class RepositoryScanner:
         repository_path = self.workspace / "repository"
 
         try:
+            print(f"Cloning repository: {repository_url}")
+
             Repo.clone_from(
                 repository_url,
                 repository_path,
                 depth=1,
             )
+
+            print("Repository cloned successfully.")
+
         except GitCommandError as error:
+            print("Git clone failed.")
+            print(f"Repository URL: {repository_url}")
+            print(f"Git status: {error.status}")
+            print(f"Git command: {error.command}")
+            print(f"Git stderr: {error.stderr}")
+
+            self.cleanup()
+
+            error_message = str(error.stderr).strip() if error.stderr else str(error)
+
+            raise ValueError(
+                f"Unable to clone repository. Git error: {error_message}"
+            ) from error
+
+        except Exception as error:
+            print("Unexpected repository cloning error.")
+            print(f"Error: {error}")
+
             self.cleanup()
 
             raise ValueError(
-                "Unable to clone the repository. "
-                "Make sure the URL is correct and the repository is public."
+                f"Unable to clone repository: {str(error)}"
             ) from error
 
         return repository_path
