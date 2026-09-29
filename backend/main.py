@@ -8,22 +8,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from services.dependency_analyzer import (
-    DependencyAnalyzer,
-)
+from services.dependency_analyzer import DependencyAnalyzer
 from services.groq_service import GroqService
-from services.issue_scanner import (
-    IssueScanner,
-)
-from services.quality_analyzer import (
-    QualityAnalyzer,
-)
-from services.repository_scanner import (
-    RepositoryScanner,
-)
-from services.security_analyzer import (
-    SecurityAnalyzer,
-)
+from services.issue_scanner import IssueScanner
+from services.quality_analyzer import QualityAnalyzer
+from services.repository_scanner import RepositoryScanner
+from services.security_analyzer import SecurityAnalyzer
 from services.bug_investigator import (
     BugInvestigator,
     InvestigationRequest,
@@ -40,11 +30,13 @@ app = FastAPI(
 )
 
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://repolens-frontend-ahlv.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -106,9 +98,7 @@ def ai_test():
     except Exception as error:
         raise HTTPException(
             status_code=502,
-            detail=(
-                f"Unexpected AI error: {error}"
-            ),
+            detail=f"Unexpected AI error: {error}",
         )
 
 
@@ -117,10 +107,8 @@ def explain_issue(
     request: IssueAIRequest,
 ):
     try:
-        answer = (
-            groq_service.explain_issue(
-                request.issue
-            )
+        answer = groq_service.explain_issue(
+            request.issue
         )
 
         return {
@@ -138,9 +126,7 @@ def explain_issue(
     except Exception as error:
         raise HTTPException(
             status_code=502,
-            detail=(
-                f"Unexpected AI error: {error}"
-            ),
+            detail=f"Unexpected AI error: {error}",
         )
 
 
@@ -149,10 +135,8 @@ def generate_fix(
     request: IssueAIRequest,
 ):
     try:
-        answer = (
-            groq_service.generate_fix(
-                request.issue
-            )
+        answer = groq_service.generate_fix(
+            request.issue
         )
 
         return {
@@ -170,15 +154,12 @@ def generate_fix(
     except Exception as error:
         raise HTTPException(
             status_code=502,
-            detail=(
-                f"Unexpected AI error: {error}"
-            ),
+            detail=f"Unexpected AI error: {error}",
         )
 
 
 @app.get("/api/investigate/scenarios")
 def get_investigation_scenarios():
-    """Return pre-configured bug scenarios with tests and code for one-click investigation."""
     try:
         scenarios = bug_investigator.get_sample_scenarios()
 
@@ -201,10 +182,6 @@ def get_investigation_scenarios():
 def investigate_bug(
     request: InvestigationRequest,
 ):
-    """
-    Given a repository context, bug report, and available tests,
-    investigate the likely cause and provide an evidence-backed diagnosis.
-    """
     try:
         diagnosis = bug_investigator.diagnose(
             request
@@ -218,9 +195,7 @@ def investigate_bug(
     except Exception as error:
         raise HTTPException(
             status_code=500,
-            detail=(
-                f"Investigation failed: {error}"
-            ),
+            detail=f"Investigation failed: {error}",
         )
 
 
@@ -229,6 +204,12 @@ def analyze_repository(
     request: RepositoryRequest,
 ):
     repository_url = request.url.strip()
+
+    if not repository_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Repository URL is required.",
+        )
 
     parsed = urlparse(repository_url)
 
@@ -247,9 +228,7 @@ def analyze_repository(
     }:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Only GitHub repository URLs are supported."
-            ),
+            detail="Only GitHub repository URLs are supported.",
         )
 
     parts = [
@@ -270,6 +249,12 @@ def analyze_repository(
     owner = parts[0]
     repository = parts[1].removesuffix(".git")
 
+    if not owner or not repository:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GitHub repository URL.",
+        )
+
     github_api_url = (
         f"https://api.github.com/repos/"
         f"{owner}/{repository}"
@@ -288,25 +273,16 @@ def analyze_repository(
             github_request,
             timeout=10,
         ) as response:
-            data = response.read().decode(
-                "utf-8"
-            )
+            data = response.read().decode("utf-8")
 
     except HTTPError as error:
-
         try:
-            error_body = error.read().decode(
-                "utf-8"
-            )
+            error_body = error.read().decode("utf-8")
         except Exception:
             error_body = ""
 
-        print(
-            f"GitHub API error: {error.code}"
-        )
-        print(
-            f"GitHub response: {error_body}"
-        )
+        print(f"GitHub API error: {error.code}")
+        print(f"GitHub response: {error_body}")
 
         if error.code == 404:
             raise HTTPException(
@@ -321,9 +297,7 @@ def analyze_repository(
         if error.code == 401:
             raise HTTPException(
                 status_code=502,
-                detail=(
-                    "GitHub authentication failed."
-                ),
+                detail="GitHub authentication failed.",
             )
 
         if error.code == 403:
@@ -346,9 +320,7 @@ def analyze_repository(
         )
 
     except URLError as error:
-        print(
-            f"GitHub connection error: {error}"
-        )
+        print(f"GitHub connection error: {error}")
 
         raise HTTPException(
             status_code=503,
@@ -361,64 +333,63 @@ def analyze_repository(
             detail="GitHub request timed out.",
         )
 
-    repo_data = json.loads(data)
+    try:
+        repo_data = json.loads(data)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=502,
+            detail="GitHub returned an invalid response.",
+        )
 
     scanner = RepositoryScanner()
 
     try:
+        print(
+            f"Starting repository analysis: "
+            f"{repository_url}"
+        )
 
-        repository_path = (
-            scanner.clone_repository(
-                repository_url
-            )
+        repository_path = scanner.clone_repository(
+            repository_url
+        )
+
+        print(
+            f"Repository cloned successfully: "
+            f"{repository_path}"
         )
 
         files = scanner.scan_files(
             repository_path
         )
 
-        custom_issue_scanner = (
-            IssueScanner()
+        print(
+            f"Files scanned: {len(files)}"
         )
 
-        custom_issues = (
-            custom_issue_scanner.scan(
-                files
-            )
+        custom_issue_scanner = IssueScanner()
+
+        custom_issues = custom_issue_scanner.scan(
+            files
         )
 
-        security_analyzer = (
-            SecurityAnalyzer()
+        security_analyzer = SecurityAnalyzer()
+
+        security_issues = security_analyzer.analyze(
+            repository_path
         )
 
-        security_issues = (
-            security_analyzer.analyze(
-                repository_path
-            )
+        dependency_analyzer = DependencyAnalyzer()
+
+        dependency_result = dependency_analyzer.analyze(
+            repository_path
         )
 
-        dependency_analyzer = (
-            DependencyAnalyzer()
-        )
+        dependency_issues = dependency_result["issues"]
 
-        dependency_result = (
-            dependency_analyzer.analyze(
-                repository_path
-            )
-        )
+        quality_analyzer = QualityAnalyzer()
 
-        dependency_issues = (
-            dependency_result["issues"]
-        )
-
-        quality_analyzer = (
-            QualityAnalyzer()
-        )
-
-        quality_issues = (
-            quality_analyzer.analyze(
-                repository_path
-            )
+        quality_issues = quality_analyzer.analyze(
+            repository_path
         )
 
         all_issues = (
@@ -428,10 +399,8 @@ def analyze_repository(
             + quality_issues
         )
 
-        all_issues = (
-            _remove_duplicate_issues(
-                all_issues
-            )
+        all_issues = _remove_duplicate_issues(
+            all_issues
         )
 
         severity_counts = {
@@ -443,25 +412,20 @@ def analyze_repository(
         category_counts = {}
 
         for issue in all_issues:
-
             severity = issue.get(
                 "severity",
                 "LOW",
             )
 
             if severity in severity_counts:
-                severity_counts[
-                    severity
-                ] += 1
+                severity_counts[severity] += 1
 
             category = issue.get(
                 "category",
                 "Other",
             )
 
-            category_counts[
-                category
-            ] = (
+            category_counts[category] = (
                 category_counts.get(
                     category,
                     0,
@@ -469,11 +433,32 @@ def analyze_repository(
                 + 1
             )
 
+        print(
+            f"Analysis completed successfully. "
+            f"Issues found: {len(all_issues)}"
+        )
+
     except ValueError as error:
+        print(
+            f"Repository analysis ValueError: {error}"
+        )
 
         raise HTTPException(
             status_code=400,
             detail=str(error),
+        )
+
+    except Exception as error:
+        print(
+            f"Repository analysis failed: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Repository analysis failed: "
+                f"{error}"
+            ),
         )
 
     finally:
@@ -481,68 +466,45 @@ def analyze_repository(
 
     return {
         "name": repo_data.get("name"),
-
-        "full_name": repo_data.get(
-            "full_name"
-        ),
-
-        "description": repo_data.get(
-            "description"
-        ),
-
+        "full_name": repo_data.get("full_name"),
+        "description": repo_data.get("description"),
         "default_branch": repo_data.get(
             "default_branch"
         ),
-
         "stars": repo_data.get(
             "stargazers_count",
             0,
         ),
-
         "forks": repo_data.get(
             "forks_count",
             0,
         ),
-
         "open_issues": repo_data.get(
             "open_issues_count",
             0,
         ),
-
         "language": repo_data.get(
             "language"
         ),
-
         "private": repo_data.get(
             "private",
             False,
         ),
-
         "html_url": repo_data.get(
             "html_url"
         ),
-
         "files_scanned": len(files),
-
-        "issues_found": len(
-            all_issues
-        ),
-
+        "issues_found": len(all_issues),
         "issues": all_issues,
-
         "severity_counts": severity_counts,
-
         "category_counts": category_counts,
-
         "dependencies": {
             "python": dependency_result[
                 "python_dependencies"
             ],
-
             "javascript": dependency_result[
                 "javascript_dependencies"
             ],
-
             "total": dependency_result[
                 "total_dependencies"
             ],
@@ -553,12 +515,10 @@ def analyze_repository(
 def _remove_duplicate_issues(
     issues: list[dict],
 ) -> list[dict]:
-
     seen = set()
     unique_issues = []
 
     for issue in issues:
-
         key = (
             issue.get("severity"),
             issue.get("category"),
