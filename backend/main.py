@@ -1,42 +1,50 @@
-import os
-import json
-import tempfile
-import shutil
-from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
+
+import json
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from services.repository_scanner import RepositoryScanner
+from services.dependency_analyzer import (
+    DependencyAnalyzer,
+)
 from services.groq_service import GroqService
-from services.issue_scanner import IssueScanner
-from services.quality_analyzer import QualityAnalyzer
-from services.security_analyzer import SecurityAnalyzer
-from services.dependency_analyzer import DependencyAnalyzer
+from services.issue_scanner import (
+    IssueScanner,
+)
+from services.quality_analyzer import (
+    QualityAnalyzer,
+)
+from services.repository_scanner import (
+    RepositoryScanner,
+)
+from services.security_analyzer import (
+    SecurityAnalyzer,
+)
+from services.bug_investigator import (
+    BugInvestigator,
+    InvestigationRequest,
+)
 
 
 app = FastAPI(
     title="RepoLens API",
-    description="AI-powered GitHub repository analysis platform",
     version="1.0.0",
+    description=(
+        "Backend for the RepoLens AI-powered "
+        "repository analyzer"
+    ),
 )
 
-
-# ---------------------------------------------------------
-# CORS
-# ---------------------------------------------------------
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "https://repolens.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -44,42 +52,17 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------
-# Services
-# ---------------------------------------------------------
-
-groq_service = GroqService()
-issue_scanner = IssueScanner()
-quality_analyzer = QualityAnalyzer()
-security_analyzer = SecurityAnalyzer()
-dependency_analyzer = DependencyAnalyzer()
-
-
-# ---------------------------------------------------------
-# Request Models
-# ---------------------------------------------------------
-
 class RepositoryRequest(BaseModel):
     url: str
 
 
-class AIRequest(BaseModel):
-    prompt: str
-
-
-class FixRequest(BaseModel):
+class IssueAIRequest(BaseModel):
     issue: dict
 
 
-class BugInvestigationRequest(BaseModel):
-    repository_url: str
-    file_path: str | None = None
-    error_message: str
+groq_service = GroqService()
+bug_investigator = BugInvestigator(groq_service)
 
-
-# ---------------------------------------------------------
-# Health Check
-# ---------------------------------------------------------
 
 @app.get("/")
 def root():
@@ -88,119 +71,250 @@ def root():
     }
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {
         "status": "healthy"
     }
 
 
-# ---------------------------------------------------------
-# GitHub URL Validation
-# ---------------------------------------------------------
+@app.get("/api/ai/status")
+def ai_status():
+    return {
+        "configured": groq_service.is_configured(),
+        "model": groq_service.model,
+    }
 
-def validate_github_url(repository_url: str):
+
+@app.get("/api/ai/test")
+def ai_test():
+    try:
+        answer = groq_service.test_connection()
+
+        return {
+            "success": True,
+            "answer": answer,
+            "model": groq_service.model,
+        }
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Unexpected AI error: {error}"
+            ),
+        )
+
+
+@app.post("/api/ai/explain")
+def explain_issue(
+    request: IssueAIRequest,
+):
+    try:
+        answer = (
+            groq_service.explain_issue(
+                request.issue
+            )
+        )
+
+        return {
+            "success": True,
+            "answer": answer,
+            "model": groq_service.model,
+        }
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Unexpected AI error: {error}"
+            ),
+        )
+
+
+@app.post("/api/ai/fix")
+def generate_fix(
+    request: IssueAIRequest,
+):
+    try:
+        answer = (
+            groq_service.generate_fix(
+                request.issue
+            )
+        )
+
+        return {
+            "success": True,
+            "answer": answer,
+            "model": groq_service.model,
+        }
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Unexpected AI error: {error}"
+            ),
+        )
+
+
+@app.get("/api/investigate/scenarios")
+def get_investigation_scenarios():
+    """Return pre-configured bug scenarios with tests and code for one-click investigation."""
+    try:
+        scenarios = bug_investigator.get_sample_scenarios()
+
+        return {
+            "success": True,
+            "scenarios": scenarios,
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Failed to fetch sample scenarios: "
+                f"{error}"
+            ),
+        )
+
+
+@app.post("/api/investigate/diagnose")
+def investigate_bug(
+    request: InvestigationRequest,
+):
+    """
+    Given a repository context, bug report, and available tests,
+    investigate the likely cause and provide an evidence-backed diagnosis.
+    """
+    try:
+        diagnosis = bug_investigator.diagnose(
+            request
+        )
+
+        return {
+            "success": True,
+            "diagnosis": diagnosis.model_dump(),
+        }
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"Investigation failed: {error}"
+            ),
+        )
+
+
+@app.post("/api/repositories/analyze")
+def analyze_repository(
+    request: RepositoryRequest,
+):
+    repository_url = request.url.strip()
+
     parsed = urlparse(repository_url)
 
-    if parsed.scheme not in ["http", "https"]:
+    if parsed.scheme not in {
+        "http",
+        "https",
+    }:
         raise HTTPException(
             status_code=400,
-            detail="Repository URL must start with http:// or https://"
+            detail="Please provide a valid GitHub URL.",
         )
 
-    if parsed.netloc.lower() not in [
+    if parsed.netloc.lower() not in {
         "github.com",
         "www.github.com",
-    ]:
+    }:
         raise HTTPException(
             status_code=400,
-            detail="Only GitHub repository URLs are supported."
+            detail=(
+                "Only GitHub repository URLs are supported."
+            ),
         )
 
-    path_parts = [
-        part for part in parsed.path.strip("/").split("/")
+    parts = [
+        part
+        for part in parsed.path.strip("/").split("/")
         if part
     ]
 
-    if len(path_parts) < 2:
+    if len(parts) < 2:
         raise HTTPException(
             status_code=400,
-            detail="Invalid GitHub repository URL."
+            detail=(
+                "Use a URL such as "
+                "https://github.com/user/repository"
+            ),
         )
 
-    owner = path_parts[0]
-    repository = path_parts[1]
-
-    if repository.endswith(".git"):
-        repository = repository[:-4]
-
-    if not owner or not repository:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid GitHub repository URL."
-        )
-
-    return owner, repository
-
-
-# ---------------------------------------------------------
-# Repository Analysis
-# ---------------------------------------------------------
-
-@app.post("/api/repositories/analyze")
-def analyze_repository(request: RepositoryRequest):
-
-    repository_url = request.url.strip()
-
-    owner, repository = validate_github_url(repository_url)
-
-    # -----------------------------------------------------
-    # Get repository information from GitHub API
-    # -----------------------------------------------------
+    owner = parts[0]
+    repository = parts[1].removesuffix(".git")
 
     github_api_url = (
-        f"https://api.github.com/repos/{owner}/{repository}"
+        f"https://api.github.com/repos/"
+        f"{owner}/{repository}"
     )
-
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "RepoLens",
-    }
-
-    github_token = os.getenv("GITHUB_TOKEN")
-
-    if github_token:
-        headers["Authorization"] = f"Bearer {github_token}"
 
     github_request = Request(
         github_api_url,
-        headers=headers,
-        method="GET",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "RepoLens",
+        },
     )
 
     try:
-        with urlopen(github_request, timeout=10) as response:
-            repository_data = json.loads(
-                response.read().decode("utf-8")
+        with urlopen(
+            github_request,
+            timeout=10,
+        ) as response:
+            data = response.read().decode(
+                "utf-8"
             )
 
     except HTTPError as error:
 
         try:
-            error_body = error.read().decode("utf-8")
+            error_body = error.read().decode(
+                "utf-8"
+            )
         except Exception:
             error_body = ""
 
-        print(f"GitHub API error: {error.code}")
-        print(f"GitHub response: {error_body}")
+        print(
+            f"GitHub API error: {error.code}"
+        )
+        print(
+            f"GitHub response: {error_body}"
+        )
 
         if error.code == 404:
             raise HTTPException(
                 status_code=404,
                 detail=(
                     "Repository not found. "
-                    "Make sure the repository is public "
-                    "and the URL is correct."
+                    "Make sure it is public and the URL "
+                    "is correct."
                 ),
             )
 
@@ -208,8 +322,7 @@ def analyze_repository(request: RepositoryRequest):
             raise HTTPException(
                 status_code=502,
                 detail=(
-                    "GitHub authentication failed. "
-                    "Check the GITHUB_TOKEN configured on the backend."
+                    "GitHub authentication failed."
                 ),
             )
 
@@ -217,7 +330,8 @@ def analyze_repository(request: RepositoryRequest):
             raise HTTPException(
                 status_code=502,
                 detail=(
-                    "GitHub API access was denied or rate limited. "
+                    "GitHub API access was denied "
+                    "or rate limited. "
                     f"GitHub response: "
                     f"{error_body or error.reason}"
                 ),
@@ -232,512 +346,231 @@ def analyze_repository(request: RepositoryRequest):
         )
 
     except URLError as error:
-
-        print(f"GitHub connection error: {error}")
+        print(
+            f"GitHub connection error: {error}"
+        )
 
         raise HTTPException(
             status_code=503,
-            detail="Could not connect to GitHub."
+            detail="Could not connect to GitHub.",
         )
 
     except TimeoutError:
-
         raise HTTPException(
             status_code=504,
-            detail="GitHub request timed out."
+            detail="GitHub request timed out.",
         )
 
-    except Exception as error:
+    repo_data = json.loads(data)
 
-        print(f"Unexpected GitHub API error: {error}")
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unexpected GitHub API error: {error}"
-        )
-
-    # -----------------------------------------------------
-    # Clone repository
-    # -----------------------------------------------------
-
-    temporary_directory = tempfile.mkdtemp(
-        prefix="repolens_"
-    )
+    scanner = RepositoryScanner()
 
     try:
 
-        scanner = RepositoryScanner()
-
-        repository_path = scanner.clone_repository(
-            repository_url,
-            temporary_directory,
-        )
-
-        # -------------------------------------------------
-        # Scan repository
-        # -------------------------------------------------
-
-        scan_result = scanner.scan_repository(
-            repository_path
-        )
-
-        # -------------------------------------------------
-        # Detect issues
-        # -------------------------------------------------
-
-        issues = issue_scanner.scan(
-            repository_path
-        )
-
-        # -------------------------------------------------
-        # Quality analysis
-        # -------------------------------------------------
-
-        quality_result = quality_analyzer.analyze(
-            repository_path
-        )
-
-        # -------------------------------------------------
-        # Security analysis
-        # -------------------------------------------------
-
-        security_result = security_analyzer.analyze(
-            repository_path
-        )
-
-        # -------------------------------------------------
-        # Dependency analysis
-        # -------------------------------------------------
-
-        dependency_result = dependency_analyzer.analyze(
-            repository_path
-        )
-
-        # -------------------------------------------------
-        # Build response
-        # -------------------------------------------------
-
-        result = {
-            "full_name": repository_data.get(
-                "full_name",
-                f"{owner}/{repository}"
-            ),
-            "name": repository_data.get(
-                "name",
-                repository
-            ),
-            "description": repository_data.get(
-                "description"
-            ),
-            "html_url": repository_data.get(
-                "html_url",
+        repository_path = (
+            scanner.clone_repository(
                 repository_url
-            ),
-            "language": repository_data.get(
-                "language"
-            ),
-            "default_branch": repository_data.get(
-                "default_branch",
-                "main"
-            ),
-            "stars": repository_data.get(
-                "stargazers_count",
-                0
-            ),
-            "forks": repository_data.get(
-                "forks_count",
-                0
-            ),
-            "issues": issues,
-            "issues_found": len(issues),
-            "severity_counts": {
-                "HIGH": sum(
-                    1
-                    for issue in issues
-                    if str(
-                        issue.get("severity", "")
-                    ).upper()
-                    == "HIGH"
-                ),
-                "MEDIUM": sum(
-                    1
-                    for issue in issues
-                    if str(
-                        issue.get("severity", "")
-                    ).upper()
-                    == "MEDIUM"
-                ),
-                "LOW": sum(
-                    1
-                    for issue in issues
-                    if str(
-                        issue.get("severity", "")
-                    ).upper()
-                    == "LOW"
-                ),
-            },
-            "category_counts": {},
-            "dependencies": dependency_result,
-            "quality": quality_result,
-            "security": security_result,
-            "scan": scan_result,
-        }
+            )
+        )
 
-        # -------------------------------------------------
-        # Category counts
-        # -------------------------------------------------
+        files = scanner.scan_files(
+            repository_path
+        )
+
+        custom_issue_scanner = (
+            IssueScanner()
+        )
+
+        custom_issues = (
+            custom_issue_scanner.scan(
+                files
+            )
+        )
+
+        security_analyzer = (
+            SecurityAnalyzer()
+        )
+
+        security_issues = (
+            security_analyzer.analyze(
+                repository_path
+            )
+        )
+
+        dependency_analyzer = (
+            DependencyAnalyzer()
+        )
+
+        dependency_result = (
+            dependency_analyzer.analyze(
+                repository_path
+            )
+        )
+
+        dependency_issues = (
+            dependency_result["issues"]
+        )
+
+        quality_analyzer = (
+            QualityAnalyzer()
+        )
+
+        quality_issues = (
+            quality_analyzer.analyze(
+                repository_path
+            )
+        )
+
+        all_issues = (
+            custom_issues
+            + security_issues
+            + dependency_issues
+            + quality_issues
+        )
+
+        all_issues = (
+            _remove_duplicate_issues(
+                all_issues
+            )
+        )
+
+        severity_counts = {
+            "HIGH": 0,
+            "MEDIUM": 0,
+            "LOW": 0,
+        }
 
         category_counts = {}
 
-        for issue in issues:
+        for issue in all_issues:
+
+            severity = issue.get(
+                "severity",
+                "LOW",
+            )
+
+            if severity in severity_counts:
+                severity_counts[
+                    severity
+                ] += 1
+
             category = issue.get(
                 "category",
-                "Other"
+                "Other",
             )
 
-            category_counts[category] = (
-                category_counts.get(category, 0) + 1
+            category_counts[
+                category
+            ] = (
+                category_counts.get(
+                    category,
+                    0,
+                )
+                + 1
             )
-
-        result["category_counts"] = category_counts
-
-        return result
 
     except ValueError as error:
 
-        print(f"Repository analysis error: {error}")
-
         raise HTTPException(
             status_code=400,
-            detail=str(error)
-        )
-
-    except Exception as error:
-
-        print(
-            f"Unexpected repository analysis error: "
-            f"{error}"
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                "Failed to analyze repository. "
-                f"Error: {error}"
-            )
+            detail=str(error),
         )
 
     finally:
+        scanner.cleanup()
 
-        try:
-            shutil.rmtree(
-                temporary_directory,
-                ignore_errors=True
-            )
-        except Exception:
-            pass
+    return {
+        "name": repo_data.get("name"),
 
+        "full_name": repo_data.get(
+            "full_name"
+        ),
 
-# ---------------------------------------------------------
-# AI Test
-# ---------------------------------------------------------
+        "description": repo_data.get(
+            "description"
+        ),
 
-@app.post("/api/ai/test")
-def test_ai(request: AIRequest):
+        "default_branch": repo_data.get(
+            "default_branch"
+        ),
 
-    try:
+        "stars": repo_data.get(
+            "stargazers_count",
+            0,
+        ),
 
-        response = groq_service.generate_response(
-            request.prompt
-        )
+        "forks": repo_data.get(
+            "forks_count",
+            0,
+        ),
 
-        if not response:
-            raise HTTPException(
-                status_code=503,
-                detail="Groq returned an empty response."
-            )
+        "open_issues": repo_data.get(
+            "open_issues_count",
+            0,
+        ),
 
-        return {
-            "response": response
-        }
+        "language": repo_data.get(
+            "language"
+        ),
 
-    except HTTPException:
-        raise
+        "private": repo_data.get(
+            "private",
+            False,
+        ),
 
-    except Exception as error:
+        "html_url": repo_data.get(
+            "html_url"
+        ),
 
-        print(f"AI test error: {error}")
+        "files_scanned": len(files),
 
-        raise HTTPException(
-            status_code=500,
-            detail=f"AI request failed: {error}"
-        )
+        "issues_found": len(
+            all_issues
+        ),
 
+        "issues": all_issues,
 
-# ---------------------------------------------------------
-# AI Explain Issue
-# ---------------------------------------------------------
+        "severity_counts": severity_counts,
 
-@app.post("/api/ai/explain")
-def explain_issue(request: AIRequest):
+        "category_counts": category_counts,
 
-    try:
+        "dependencies": {
+            "python": dependency_result[
+                "python_dependencies"
+            ],
 
-        response = groq_service.generate_response(
-            request.prompt
-        )
+            "javascript": dependency_result[
+                "javascript_dependencies"
+            ],
 
-        if not response:
-            raise HTTPException(
-                status_code=503,
-                detail="Groq returned an empty response."
-            )
-
-        return {
-            "explanation": response
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as error:
-
-        print(f"AI explanation error: {error}")
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"AI explanation failed: {error}"
-        )
-
-
-# ---------------------------------------------------------
-# AI Fix Issue
-# ---------------------------------------------------------
-
-@app.post("/api/ai/fix")
-def fix_issue(request: FixRequest):
-
-    try:
-
-        issue = request.issue
-
-        prompt = f"""
-You are a senior software engineer.
-
-Analyze the following repository issue and suggest a
-clear and practical fix.
-
-Issue:
-{json.dumps(issue, indent=2)}
-
-Provide:
-
-1. What the issue means
-2. Why it happens
-3. How to fix it
-4. Example corrected code if applicable
-
-Keep the explanation beginner-friendly.
-"""
-
-        response = groq_service.generate_response(
-            prompt
-        )
-
-        if not response:
-            raise HTTPException(
-                status_code=503,
-                detail="Groq returned an empty response."
-            )
-
-        return {
-            "fix": response
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as error:
-
-        print(f"AI fix error: {error}")
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"AI fix failed: {error}"
-        )
-
-
-# ---------------------------------------------------------
-# Bug Investigation
-# ---------------------------------------------------------
-
-@app.post("/api/bug-investigator")
-def investigate_bug(
-    request: BugInvestigationRequest
-):
-
-    try:
-
-        prompt = f"""
-You are a software debugging assistant.
-
-Repository:
-{request.repository_url}
-
-File:
-{request.file_path or "Not specified"}
-
-Error:
-{request.error_message}
-
-Analyze the error and provide:
-
-1. Root cause
-2. Why it happens
-3. Step-by-step fix
-4. Corrected code if possible
-5. Prevention tips
-
-Keep the explanation simple and practical.
-"""
-
-        response = groq_service.generate_response(
-            prompt
-        )
-
-        if not response:
-            raise HTTPException(
-                status_code=503,
-                detail="Groq returned an empty response."
-            )
-
-        return {
-            "analysis": response
-        }
-
-    except HTTPException:
-        raise
-
-    except Exception as error:
-
-        print(
-            f"Bug investigation error: {error}"
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=(
-                f"Bug investigation failed: {error}"
-            )
-        )
-
-
-# ---------------------------------------------------------
-# Repository Information
-# ---------------------------------------------------------
-
-@app.get("/api/repositories/info")
-def repository_info(url: str):
-
-    owner, repository = validate_github_url(url)
-
-    github_api_url = (
-        f"https://api.github.com/repos/{owner}/{repository}"
-    )
-
-    headers = {
-        "Accept": "application/vnd.github+json",
-        "User-Agent": "RepoLens",
+            "total": dependency_result[
+                "total_dependencies"
+            ],
+        },
     }
 
-    github_token = os.getenv("GITHUB_TOKEN")
 
-    if github_token:
-        headers["Authorization"] = (
-            f"Bearer {github_token}"
+def _remove_duplicate_issues(
+    issues: list[dict],
+) -> list[dict]:
+
+    seen = set()
+    unique_issues = []
+
+    for issue in issues:
+
+        key = (
+            issue.get("severity"),
+            issue.get("category"),
+            issue.get("title"),
+            issue.get("file"),
+            issue.get("line"),
         )
 
-    github_request = Request(
-        github_api_url,
-        headers=headers,
-        method="GET",
-    )
+        if key in seen:
+            continue
 
-    try:
+        seen.add(key)
+        unique_issues.append(issue)
 
-        with urlopen(
-            github_request,
-            timeout=10
-        ) as response:
-
-            data = json.loads(
-                response.read().decode("utf-8")
-            )
-
-        return {
-            "name": data.get("name"),
-            "full_name": data.get("full_name"),
-            "description": data.get("description"),
-            "html_url": data.get("html_url"),
-            "language": data.get("language"),
-            "default_branch": data.get(
-                "default_branch"
-            ),
-            "stars": data.get(
-                "stargazers_count",
-                0
-            ),
-            "forks": data.get(
-                "forks_count",
-                0
-            ),
-        }
-
-    except HTTPError as error:
-
-        try:
-            error_body = error.read().decode(
-                "utf-8"
-            )
-        except Exception:
-            error_body = ""
-
-        print(
-            f"GitHub info API error: "
-            f"{error.code}"
-        )
-        print(
-            f"GitHub response: "
-            f"{error_body}"
-        )
-
-        if error.code == 404:
-            raise HTTPException(
-                status_code=404,
-                detail="Repository not found."
-            )
-
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"GitHub API error {error.code}: "
-                f"{error_body or error.reason}"
-            )
-        )
-
-    except URLError as error:
-
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                f"Could not connect to GitHub: "
-                f"{error}"
-            )
-        )
-
-    except Exception as error:
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(error)
-        )
+    return unique_issues
