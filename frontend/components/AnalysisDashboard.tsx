@@ -27,6 +27,23 @@ type AnalysisDashboardProps = {
   repository: Repository;
 };
 
+/*
+ * API CONFIGURATION
+ *
+ * Local development:
+ * NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
+ *
+ * Production:
+ * NEXT_PUBLIC_API_URL=https://repolens-n8j1.onrender.com
+ *
+ * The Render URL is also used as a fallback so the deployed
+ * frontend does not accidentally call localhost.
+ */
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://repolens-n8j1.onrender.com"
+).replace(/\/$/, "");
+
 export default function AnalysisDashboard({
   repository,
 }: AnalysisDashboardProps) {
@@ -86,9 +103,7 @@ export default function AnalysisDashboard({
         <div className="mt-6 flex flex-wrap gap-3">
           <MetaBadge
             label="Language"
-            value={
-              repository.language || "Unknown"
-            }
+            value={repository.language || "Unknown"}
           />
 
           <MetaBadge
@@ -114,36 +129,28 @@ export default function AnalysisDashboard({
           title="Repository Health"
           value={score.overall}
           subtitle="Overall analysis score"
-          icon={
-            <CheckCircle2 className="h-5 w-5" />
-          }
+          icon={<CheckCircle2 className="h-5 w-5" />}
         />
 
         <ScoreCard
           title="Security"
           value={score.security}
           subtitle="Security finding score"
-          icon={
-            <ShieldAlert className="h-5 w-5" />
-          }
+          icon={<ShieldAlert className="h-5 w-5" />}
         />
 
         <ScoreCard
           title="Code Quality"
           value={score.quality}
           subtitle="Maintainability score"
-          icon={
-            <Code2 className="h-5 w-5" />
-          }
+          icon={<Code2 className="h-5 w-5" />}
         />
 
         <ScoreCard
           title="Dependencies"
           value={score.dependencies}
           subtitle="Dependency hygiene"
-          icon={
-            <Package className="h-5 w-5" />
-          }
+          icon={<Package className="h-5 w-5" />}
         />
       </div>
 
@@ -186,27 +193,21 @@ export default function AnalysisDashboard({
           <div className="space-y-4">
             <SeverityRow
               label="High"
-              count={
-                repository.severity_counts.HIGH
-              }
+              count={repository.severity_counts.HIGH}
               total={repository.issues_found}
               tone="red"
             />
 
             <SeverityRow
               label="Medium"
-              count={
-                repository.severity_counts.MEDIUM
-              }
+              count={repository.severity_counts.MEDIUM}
               total={repository.issues_found}
               tone="amber"
             />
 
             <SeverityRow
               label="Low"
-              count={
-                repository.severity_counts.LOW
-              }
+              count={repository.severity_counts.LOW}
               total={repository.issues_found}
               tone="blue"
             />
@@ -277,9 +278,7 @@ export default function AnalysisDashboard({
 
           <DependencyCard
             label="JavaScript"
-            value={
-              repository.dependencies.javascript
-            }
+            value={repository.dependencies.javascript}
           />
 
           <DependencyCard
@@ -397,10 +396,24 @@ function IssueCard({
     setAiResponse("");
 
     try {
+      /*
+       * IMPORTANT:
+       * These used to point to:
+       *
+       * http://127.0.0.1:8000
+       *
+       * That only works on your own computer.
+       *
+       * We now use the deployed Render backend.
+       */
       const endpoint =
         mode === "explain"
-          ? "http://127.0.0.1:8000/api/ai/explain"
-          : "http://127.0.0.1:8000/api/ai/fix";
+          ? `${API_URL}/api/ai/explain`
+          : `${API_URL}/api/ai/fix`;
+
+      console.log(
+        `RepoLens AI request: ${endpoint}`
+      );
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -412,20 +425,28 @@ function IssueCard({
         }),
       });
 
-      const data = await response.json();
+      let data: any = null;
+
+      try {
+        data = await response.json();
+      } catch {
+        throw new Error(
+          `Backend returned an invalid response (${response.status}).`
+        );
+      }
 
       if (!response.ok) {
         throw new Error(
-          data.detail ||
-            data.message ||
-            "AI request failed."
+          data?.detail ||
+            data?.message ||
+            `AI request failed (${response.status}).`
         );
       }
 
       const answer =
-        data.answer ||
-        data.response ||
-        data.message;
+        data?.answer ||
+        data?.response ||
+        data?.message;
 
       if (!answer) {
         throw new Error(
@@ -436,10 +457,15 @@ function IssueCard({
       setAiResponse(answer);
       setExpanded(true);
     } catch (requestError) {
+      console.error(
+        "RepoLens AI request failed:",
+        requestError
+      );
+
       const message =
         requestError instanceof Error
           ? requestError.message
-          : "Something went wrong.";
+          : "Something went wrong while contacting the AI service.";
 
       setError(message);
     } finally {
@@ -449,7 +475,6 @@ function IssueCard({
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-950/40">
-      {/* Main issue */}
       <div className="p-5">
         <div className="flex items-start gap-4">
           <SeverityIcon
@@ -549,7 +574,6 @@ function IssueCard({
           </div>
         </div>
 
-        {/* Details */}
         {expanded && (
           <div className="mt-5 space-y-4 border-t border-slate-800 pt-5">
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
@@ -566,7 +590,6 @@ function IssueCard({
               </p>
             </div>
 
-            {/* AI response */}
             {(loading || aiResponse || error) && (
               <div className="overflow-hidden rounded-xl border border-purple-500/20 bg-[#090e1b]">
                 <div className="flex items-center justify-between border-b border-purple-500/10 px-4 py-3">
@@ -738,11 +761,9 @@ function AIFormattedResponse({
     if (!line) {
       flushParagraph();
       flushLists();
-
       return;
     }
 
-    /* Markdown heading */
     if (/^#{1,4}\s+/.test(line)) {
       flushParagraph();
       flushLists();
@@ -765,7 +786,6 @@ function AIFormattedResponse({
       return;
     }
 
-    /* Bold heading */
     if (
       /^\*\*[^*]+\*\*$/.test(line)
     ) {
@@ -791,7 +811,6 @@ function AIFormattedResponse({
       return;
     }
 
-    /* Numbered item */
     const numberedMatch =
       line.match(/^(\d+)\.\s+(.*)$/);
 
@@ -806,7 +825,6 @@ function AIFormattedResponse({
       return;
     }
 
-    /* Bullet item */
     const bulletMatch =
       line.match(/^[-*•]\s+(.*)$/);
 
@@ -937,12 +955,24 @@ function calculateHealthScore(
     100 - weightedPenalty
   );
 
-  const security =
-    clampScore(100 - high * 25 - medium * 8);
+  const security = clampScore(
+    100 -
+      high * 25 -
+      medium * 8
+  );
 
-  const quality =
-    clampScore(100 - medium * 6 - low * 2);
+  const quality = clampScore(
+    100 -
+      medium * 6 -
+      low * 2
+  );
 
+  /*
+   * There is currently no separate dependency-issue
+   * count in the Repository type, so keep this score
+   * neutral until dependency vulnerability analysis
+   * is implemented.
+   */
   const dependencyIssues =
     repository.dependencies.total === 0
       ? 0
@@ -971,7 +1001,10 @@ function calculateHealthScore(
 function clampScore(value: number) {
   return Math.max(
     0,
-    Math.min(100, Math.round(value))
+    Math.min(
+      100,
+      Math.round(value)
+    )
   );
 }
 
@@ -1095,7 +1128,9 @@ function SeverityRow({
 }) {
   const percentage =
     total > 0
-      ? Math.round((count / total) * 100)
+      ? Math.round(
+          (count / total) * 100
+        )
       : 0;
 
   const classes = {
@@ -1210,4 +1245,4 @@ function FilterButton({
       {label}
     </button>
   );
-}
+}

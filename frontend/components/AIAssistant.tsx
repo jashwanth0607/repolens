@@ -12,6 +12,10 @@ import {
 
 import type { Repository } from "../lib/types";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://repolens-n8j1.onrender.com";
+
 type AIAssistantProps = {
   repository: Repository;
 };
@@ -30,8 +34,7 @@ export default function AIAssistant({
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content:
-        `Hi! I’m RepoLens AI. I can help you understand the analysis of ${repository.full_name}. Ask me about its issues, security findings, code quality, dependencies, or possible fixes.`,
+      content: `Hi! I’m RepoLens AI. I can help you understand the analysis of ${repository.full_name}. Ask me about its issues, security findings, code quality, dependencies, or possible fixes.`,
     },
   ]);
 
@@ -51,10 +54,7 @@ export default function AIAssistant({
       content: trimmedQuestion,
     };
 
-    setMessages((current) => [
-      ...current,
-      userMessage,
-    ]);
+    setMessages((current) => [...current, userMessage]);
 
     setQuestion("");
     setError("");
@@ -103,7 +103,7 @@ ${JSON.stringify(repository.category_counts)}
 `;
 
       const response = await fetch(
-        "http://127.0.0.1:8000/api/ai/explain",
+        `${API_URL}/api/ai/explain`,
         {
           method: "POST",
           headers: {
@@ -122,6 +122,7 @@ The user is asking a general question about this analyzed repository.
 ${repositoryContext}
 
 User question:
+
 ${trimmedQuestion}
 `,
               suggestion:
@@ -175,8 +176,7 @@ ${trimmedQuestion}
     setMessages([
       {
         role: "assistant",
-        content:
-          `Chat cleared. Ask me anything about ${repository.full_name}.`,
+        content: `Chat cleared. Ask me anything about ${repository.full_name}.`,
       },
     ]);
 
@@ -186,7 +186,6 @@ ${trimmedQuestion}
 
   return (
     <div className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 backdrop-blur-2xl">
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-white/[0.06] px-6 py-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#BF5AF2]/15 text-[#BF5AF2]">
@@ -220,11 +219,9 @@ ${trimmedQuestion}
         </button>
       </div>
 
-      {/* Chat */}
       <div className="max-h-[580px] min-h-[440px] space-y-6 overflow-y-auto p-6">
         {messages.map((message, index) => {
-          const isUser =
-            message.role === "user";
+          const isUser = message.role === "user";
 
           return (
             <div
@@ -282,7 +279,6 @@ ${trimmedQuestion}
         )}
       </div>
 
-      {/* Error */}
       {error && (
         <div className="mx-6 mb-4 flex items-start gap-2.5 rounded-2xl border border-red-500/20 bg-red-500/10 p-3.5 text-xs text-red-200">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />
@@ -290,7 +286,6 @@ ${trimmedQuestion}
         </div>
       )}
 
-      {/* Suggestions */}
       <div className="border-t border-white/[0.06] px-6 py-4">
         <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-wider text-[#86868b]">
           Suggested prompts
@@ -319,7 +314,6 @@ ${trimmedQuestion}
         </div>
       </div>
 
-      {/* Input */}
       <form
         onSubmit={askAI}
         className="border-t border-white/[0.06] p-5"
@@ -368,10 +362,6 @@ ${trimmedQuestion}
     </div>
   );
 }
-
-/* -------------------------------------------------------
-   AI RESPONSE FORMATTER
-------------------------------------------------------- */
 
 function AIFormattedResponse({
   content,
@@ -425,7 +415,6 @@ function AIFormattedResponse({
               className="relative text-sm leading-6 text-slate-300"
             >
               <span className="absolute -left-4 top-3 h-1.5 w-1.5 rounded-full bg-purple-400" />
-
               {formatInlineText(item)}
             </li>
           ))}
@@ -471,7 +460,6 @@ function AIFormattedResponse({
       return;
     }
 
-    /* Heading: ## What was detected */
     if (/^#{1,4}\s+/.test(line)) {
       flushParagraph();
       flushLists();
@@ -494,10 +482,7 @@ function AIFormattedResponse({
       return;
     }
 
-    /* Heading written as **What was detected** */
-    if (
-      /^\*\*[^*]+\*\*$/.test(line)
-    ) {
+    if (/^\*\*[^*]+\*\*$/.test(line)) {
       flushParagraph();
       flushLists();
 
@@ -520,7 +505,6 @@ function AIFormattedResponse({
       return;
     }
 
-    /* Numbered list */
     const numberedMatch =
       line.match(/^(\d+)\.\s+(.*)$/);
 
@@ -535,7 +519,6 @@ function AIFormattedResponse({
       return;
     }
 
-    /* Bullet list */
     const bulletMatch =
       line.match(/^[-*•]\s+(.*)$/);
 
@@ -547,12 +530,10 @@ function AIFormattedResponse({
       return;
     }
 
-    /* Normal paragraph */
     flushLists();
 
     paragraphLines.push(line);
 
-    /* Last line */
     if (index === lines.length - 1) {
       flushParagraph();
     }
@@ -567,10 +548,6 @@ function AIFormattedResponse({
     </div>
   );
 }
-
-/* -------------------------------------------------------
-   INLINE MARKDOWN
-------------------------------------------------------- */
 
 function formatInlineText(
   text: string
@@ -629,10 +606,6 @@ function formatInlineText(
     );
   });
 }
-
-/* -------------------------------------------------------
-   SUGGESTION BUTTON
-------------------------------------------------------- */
 
 function Suggestion({
   text,
