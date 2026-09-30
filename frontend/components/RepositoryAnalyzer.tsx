@@ -13,6 +13,10 @@ import {
 
 import type { Repository } from "../lib/types";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://repolens-n8j1.onrender.com";
+
 type Props = {
   onRepositoryAnalyzed: (repository: Repository) => void;
 };
@@ -38,7 +42,7 @@ export default function RepositoryAnalyzer({
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/api/repositories/analyze",
+        `${API_URL}/api/repositories/analyze`,
         {
           method: "POST",
           headers: {
@@ -72,14 +76,15 @@ export default function RepositoryAnalyzer({
 
   return (
     <section className="overflow-hidden rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 backdrop-blur-2xl">
-      {/* Header */}
       <div className="flex flex-col justify-between gap-4 border-b border-white/[0.06] p-6 sm:flex-row sm:items-center">
         <div>
           <h2 className="text-base font-semibold tracking-tight text-white">
             Connect & Analyze Repository
           </h2>
+
           <p className="mt-0.5 text-xs text-[#86868b]">
-            Inspect public GitHub repositories for architecture, code quality, and security findings.
+            Inspect public GitHub repositories for architecture,
+            code quality, and security findings.
           </p>
         </div>
 
@@ -89,13 +94,15 @@ export default function RepositoryAnalyzer({
         </div>
       </div>
 
-      {/* Segmented Tab Row */}
       <div className="flex border-b border-white/[0.06] px-6">
         <button
           type="button"
           className="flex items-center gap-2 border-b-2 border-[#0A84FF] py-3.5 text-xs font-semibold text-white"
         >
-          <GitBranch size={14} className="text-[#0A84FF]" />
+          <GitBranch
+            size={14}
+            className="text-[#0A84FF]"
+          />
           GitHub Repository
         </button>
 
@@ -112,10 +119,12 @@ export default function RepositoryAnalyzer({
         </button>
       </div>
 
-      {/* Input area */}
       <div className="p-6">
         <div className="flex items-center rounded-2xl border border-white/[0.08] bg-white/[0.03] px-4 transition focus-within:border-[#0A84FF]/50 focus-within:bg-white/[0.04]">
-          <Search size={16} className="shrink-0 text-[#86868b]" />
+          <Search
+            size={16}
+            className="shrink-0 text-[#86868b]"
+          />
 
           <input
             value={url}
@@ -135,14 +144,20 @@ export default function RepositoryAnalyzer({
 
         {error && (
           <div className="mt-3 flex items-start gap-2.5 rounded-2xl border border-red-500/20 bg-red-500/10 p-3.5 text-xs text-red-200">
-            <AlertTriangle size={15} className="mt-0.5 shrink-0 text-red-400" />
+            <AlertTriangle
+              size={15}
+              className="mt-0.5 shrink-0 text-red-400"
+            />
             <span>{error}</span>
           </div>
         )}
 
         <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-xs text-[#86868b]">
-            <CheckCircle2 size={14} className="text-[#30D158]" />
+            <CheckCircle2
+              size={14}
+              className="text-[#30D158]"
+            />
             Public GitHub repositories supported (HTTPS)
           </div>
 
@@ -154,7 +169,10 @@ export default function RepositoryAnalyzer({
           >
             {loading ? (
               <>
-                <Activity size={15} className="animate-spin" />
+                <Activity
+                  size={15}
+                  className="animate-spin"
+                />
                 Analyzing Repository...
               </>
             ) : (
