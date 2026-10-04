@@ -13,6 +13,7 @@ from services.groq_service import GroqService
 from services.issue_scanner import IssueScanner
 from services.quality_analyzer import QualityAnalyzer
 from services.repository_scanner import RepositoryScanner
+from services.scoring_service import ScoringService
 from services.security_analyzer import SecurityAnalyzer
 from services.bug_investigator import (
     BugInvestigator,
@@ -438,6 +439,19 @@ def analyze_repository(
             f"Issues found: {len(all_issues)}"
         )
 
+        # Calculate scores using the scoring service
+        scoring_service = ScoringService()
+
+        scores = scoring_service.calculate_scores(
+            repo_data=repo_data,
+            all_issues=all_issues,
+            category_counts=category_counts,
+            files=files,
+        )
+
+        # Add methodology to scores
+        scores["methodology"] = scoring_service.get_methodology()
+
     except ValueError as error:
         print(
             f"Repository analysis ValueError: {error}"
@@ -509,6 +523,7 @@ def analyze_repository(
                 "total_dependencies"
             ],
         },
+        "scores": scores,
     }
 
 

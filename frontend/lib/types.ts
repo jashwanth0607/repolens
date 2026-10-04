@@ -9,6 +9,66 @@ export type Issue = {
   tool?: string;
 };
 
+export type ScoreStatus =
+  | "Poor"
+  | "Needs Improvement"
+  | "Good"
+  | "Excellent";
+
+export type ScoreExplanation = {
+  positive_factors: string[];
+  negative_factors: string[];
+};
+
+export type CategoryScore = {
+  score: number;
+  status: ScoreStatus;
+  positive_factors: string[];
+  negative_factors: string[];
+};
+
+export type OverallScore = {
+  score: number;
+  status: ScoreStatus;
+  breakdown: {
+    code_quality: {
+      score: number;
+      weight: number;
+      contribution: number;
+    };
+    security: {
+      score: number;
+      weight: number;
+      contribution: number;
+    };
+    repository_health: {
+      score: number;
+      weight: number;
+      contribution: number;
+    };
+    documentation: {
+      score: number;
+      weight: number;
+      contribution: number;
+    };
+    maintainability: {
+      score: number;
+      weight: number;
+      contribution: number;
+    };
+  };
+};
+
+export type RepositoryScores = {
+  overall: OverallScore;
+  code_quality: CategoryScore;
+  security: CategoryScore;
+  repository_health: CategoryScore;
+  documentation: CategoryScore;
+  maintainability: CategoryScore;
+  methodology: string;
+};
+
 export type Repository = {
   name: string;
   full_name: string;
@@ -37,6 +97,8 @@ export type Repository = {
     javascript: number;
     total: number;
   };
+
+  scores?: RepositoryScores;
 };
 
 export type IssueFilter =

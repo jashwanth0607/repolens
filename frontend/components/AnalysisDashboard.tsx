@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Code2,
   FileCode2,
   Package,
   RefreshCw,
@@ -22,6 +21,10 @@ import type {
   IssueFilter,
   Repository,
 } from "../lib/types";
+import ScoreGauge, {
+  ScoreExplanation,
+  ScoreMethodology,
+} from "./ScoreGauge";
 
 type AnalysisDashboardProps = {
   repository: Repository;
@@ -60,11 +63,12 @@ export default function AnalysisDashboard({
     );
   }, [filter, repository.issues]);
 
-  const score = calculateHealthScore(repository);
-
   const categoryEntries = Object.entries(
     repository.category_counts
   ).sort((a, b) => b[1] - a[1]);
+
+  // Use backend scores if available, otherwise show loading state
+  const scores = repository.scores;
 
   return (
     <div className="space-y-6">
@@ -123,36 +127,119 @@ export default function AnalysisDashboard({
         </div>
       </div>
 
-      {/* Score cards */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <ScoreCard
-          title="Repository Health"
-          value={score.overall}
-          subtitle="Overall analysis score"
-          icon={<CheckCircle2 className="h-5 w-5" />}
-        />
+      {/* Gauge scores */}
+      {scores ? (
+        <div className="space-y-6">
+          {/* Overall Score - Large and Centered */}
+          <div className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-8 backdrop-blur-xl">
+            <div className="space-y-6">
+              <div className="text-center">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/50">
+                  Repository Analysis
+                </p>
+                <h3 className="text-2xl font-semibold text-white">
+                  Overall Score
+                </h3>
+              </div>
 
-        <ScoreCard
-          title="Security"
-          value={score.security}
-          subtitle="Security finding score"
-          icon={<ShieldAlert className="h-5 w-5" />}
-        />
+              <div className="flex justify-center">
+                <div className="flex flex-col items-center">
+                  <ScoreGauge
+                    score={scores.overall}
+                    title="Overall"
+                    size="large"
+                  />
+                </div>
+              </div>
 
-        <ScoreCard
-          title="Code Quality"
-          value={score.quality}
-          subtitle="Maintainability score"
-          icon={<Code2 className="h-5 w-5" />}
-        />
+              <ScoreExplanation
+                score={scores.overall}
+                showTitle={true}
+              />
+            </div>
+          </div>
 
-        <ScoreCard
-          title="Dependencies"
-          value={score.dependencies}
-          subtitle="Dependency hygiene"
-          icon={<Package className="h-5 w-5" />}
-        />
-      </div>
+          {/* Category Scores Grid */}
+          <div className="grid gap-6 md:grid-cols-3">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 backdrop-blur-xl">
+              <div className="flex justify-center">
+                <ScoreGauge
+                  score={scores.code_quality}
+                  title="Code Quality"
+                  size="small"
+                />
+              </div>
+              <ScoreExplanation
+                score={scores.code_quality}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 backdrop-blur-xl">
+              <div className="flex justify-center">
+                <ScoreGauge
+                  score={scores.security}
+                  title="Security"
+                  size="small"
+                />
+              </div>
+              <ScoreExplanation
+                score={scores.security}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 backdrop-blur-xl">
+              <div className="flex justify-center">
+                <ScoreGauge
+                  score={scores.repository_health}
+                  title="Repository Health"
+                  size="small"
+                />
+              </div>
+              <ScoreExplanation
+                score={scores.repository_health}
+              />
+            </div>
+          </div>
+
+          {/* Secondary Scores */}
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 backdrop-blur-xl">
+              <div className="flex justify-center">
+                <ScoreGauge
+                  score={scores.documentation}
+                  title="Documentation"
+                  size="small"
+                />
+              </div>
+              <ScoreExplanation
+                score={scores.documentation}
+              />
+            </div>
+
+            <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 backdrop-blur-xl">
+              <div className="flex justify-center">
+                <ScoreGauge
+                  score={scores.maintainability}
+                  title="Maintainability"
+                  size="small"
+                />
+              </div>
+              <ScoreExplanation
+                score={scores.maintainability}
+              />
+            </div>
+          </div>
+
+          {/* Methodology Footer */}
+          <ScoreMethodology methodology={scores.methodology} />
+        </div>
+      ) : (
+        <div className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-8 backdrop-blur-xl">
+          <p className="text-center text-sm text-slate-400">
+            Scores are being calculated...
+          </p>
+        </div>
+      )}
 
       {/* Overview */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -425,7 +512,7 @@ function IssueCard({
         }),
       });
 
-      let data: any = null;
+      let data: Record<string, unknown> | null = null;
 
       try {
         data = await response.json();
@@ -928,132 +1015,15 @@ function formatInlineText(
 }
 
 /* -------------------------------------------------------
-   SCORE CALCULATION
+   SCORE CALCULATION - MOVED TO BACKEND
 ------------------------------------------------------- */
 
-function calculateHealthScore(
-  repository: Repository
-) {
-  const total =
-    repository.issues_found;
-
-  const high =
-    repository.severity_counts.HIGH;
-
-  const medium =
-    repository.severity_counts.MEDIUM;
-
-  const low =
-    repository.severity_counts.LOW;
-
-  const weightedPenalty =
-    high * 15 +
-    medium * 6 +
-    low * 2;
-
-  const overall = clampScore(
-    100 - weightedPenalty
-  );
-
-  const security = clampScore(
-    100 -
-      high * 25 -
-      medium * 8
-  );
-
-  const quality = clampScore(
-    100 -
-      medium * 6 -
-      low * 2
-  );
-
-  /*
-   * There is currently no separate dependency-issue
-   * count in the Repository type, so keep this score
-   * neutral until dependency vulnerability analysis
-   * is implemented.
-   */
-  const dependencyIssues =
-    repository.dependencies.total === 0
-      ? 0
-      : Math.max(
-          0,
-          repository.dependencies.total -
-            repository.dependencies.total
-        );
-
-  const dependencyScore =
-    total === 0
-      ? 100
-      : clampScore(
-          100 -
-            dependencyIssues * 10
-        );
-
-  return {
-    overall,
-    security,
-    quality,
-    dependencies: dependencyScore,
-  };
-}
-
-function clampScore(value: number) {
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      Math.round(value)
-    )
-  );
-}
+// Scores are now calculated by the backend scoring service
+// and returned in the repository.scores object
 
 /* -------------------------------------------------------
    SMALL UI COMPONENTS
 ------------------------------------------------------- */
-
-function ScoreCard({
-  title,
-  value,
-  subtitle,
-  icon,
-}: {
-  title: string;
-  value: number;
-  subtitle: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-      <div className="flex items-center justify-between">
-        <div className="rounded-xl bg-blue-500/10 p-2.5 text-blue-400">
-          {icon}
-        </div>
-
-        <span className="text-2xl font-bold text-white">
-          {value}
-        </span>
-      </div>
-
-      <h3 className="mt-5 font-semibold text-white">
-        {title}
-      </h3>
-
-      <p className="mt-1 text-xs text-slate-500">
-        {subtitle}
-      </p>
-
-      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-slate-800">
-        <div
-          className="h-full rounded-full bg-blue-500 transition-all"
-          style={{
-            width: `${value}%`,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
 
 function MetricCard({
   label,
