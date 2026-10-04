@@ -99,6 +99,12 @@ export type Repository = {
   };
 
   scores?: RepositoryScores;
+
+  architecture?: {
+    directories: string[];
+    main_files: string[];
+    file_types: Record<string, number>;
+  };
 };
 
 export type IssueFilter =

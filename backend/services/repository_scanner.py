@@ -131,6 +131,57 @@ class RepositoryScanner:
 
         return files
 
+    def get_architecture(self, repository_path: Path) -> dict:
+        """Extract the repository architecture (directory structure and main modules)."""
+        architecture = {
+            "directories": [],
+            "main_files": [],
+            "file_types": {},
+        }
+
+        # Count file types and collect main directories
+        for path in repository_path.rglob("*"):
+            if not path.is_file():
+                continue
+
+            if self._is_ignored(path, repository_path):
+                continue
+
+            relative_path = path.relative_to(repository_path)
+            parts = relative_path.parts
+
+            # Track top-level directories
+            if len(parts) > 1:
+                top_dir = parts[0]
+                if top_dir not in architecture["directories"]:
+                    architecture["directories"].append(top_dir)
+
+            # Track file types
+            ext = path.suffix.lower()
+            if ext:
+                architecture["file_types"][ext] = (
+                    architecture["file_types"].get(ext, 0) + 1
+                )
+
+            # Collect main files (root level)
+            if len(parts) == 1:
+                architecture["main_files"].append(
+                    path.name
+                )
+
+        # Sort for consistency
+        architecture["directories"].sort()
+        architecture["main_files"].sort()
+        architecture["file_types"] = dict(
+            sorted(
+                architecture["file_types"].items(),
+                key=lambda x: x[1],
+                reverse=True,
+            )
+        )
+
+        return architecture
+
     def cleanup(self):
         if self.workspace.exists():
             shutil.rmtree(

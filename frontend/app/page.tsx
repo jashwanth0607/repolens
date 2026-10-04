@@ -22,6 +22,7 @@ import RepositoryAnalyzer from "../components/RepositoryAnalyzer";
 import AnalysisDashboard from "../components/AnalysisDashboard";
 import ReportDownloadButton from "../components/ReportDownloadButton";
 import ArchitectureView from "../components/ArchitectureView";
+import RepositoryArchitecture from "../components/RepositoryArchitecture";
 import AIAssistant from "../components/AIAssistant";
 import BugInvestigator from "../components/BugInvestigator";
 
@@ -214,7 +215,7 @@ export default function Home() {
             <div>
               <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#64D2FF]/30 bg-[#64D2FF]/10 px-3 py-1 text-xs font-medium text-[#64D2FF]">
                 <Network className="h-3.5 w-3.5" />
-                Repository architecture
+                Repository structure
               </div>
 
               <h2 className="text-3xl font-semibold tracking-tight text-white">
@@ -222,18 +223,17 @@ export default function Home() {
               </h2>
 
               <p className="mt-1 max-w-2xl text-sm text-[#86868b]">
-                Visualize how RepoLens analyzes source structure and
-                dependencies.
+                Explore the directory structure, file organization, and composition of the repository.
               </p>
             </div>
 
             {repository ? (
-              <ArchitectureView repository={repository} />
+              <RepositoryArchitecture repository={repository} />
             ) : (
               <EmptyState
                 icon={<Network className="h-8 w-8" />}
                 title="Architecture unavailable"
-                description="Analyze a repository to generate its architectural map."
+                description="Analyze a repository to explore its structure and composition."
                 onClick={() => setActivePage("Repositories")}
                 buttonText="Analyze Repository"
               />

@@ -452,6 +452,11 @@ def analyze_repository(
         # Add methodology to scores
         scores["methodology"] = scoring_service.get_methodology()
 
+        # Extract architecture information
+        architecture = scanner.get_architecture(
+            repository_path
+        )
+
     except ValueError as error:
         print(
             f"Repository analysis ValueError: {error}"
@@ -524,6 +529,7 @@ def analyze_repository(
             ],
         },
         "scores": scores,
+        "architecture": architecture,
     }
 
 
