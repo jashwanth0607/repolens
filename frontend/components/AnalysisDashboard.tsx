@@ -523,17 +523,17 @@ function IssueCard({
       }
 
       if (!response.ok) {
-        throw new Error(
-          data?.detail ||
-            data?.message ||
-            `AI request failed (${response.status}).`
-        );
+        const errorMessage =
+          (typeof data?.detail === 'string' ? data.detail : null) ||
+          (typeof data?.message === 'string' ? data.message : null) ||
+          `AI request failed (${response.status}).`;
+        throw new Error(errorMessage);
       }
 
       const answer =
-        data?.answer ||
-        data?.response ||
-        data?.message;
+        (typeof data?.answer === 'string' ? data.answer : null) ||
+        (typeof data?.response === 'string' ? data.response : null) ||
+        (typeof data?.message === 'string' ? data.message : null);
 
       if (!answer) {
         throw new Error(
