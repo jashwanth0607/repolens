@@ -10,7 +10,9 @@ import {
   Settings,
   Wrench,
   Bug,
-  Sparkles,
+  Code2,
+  CheckCircle2,
+  Terminal,
 } from "lucide-react";
 
 type SidebarProps = {
@@ -24,7 +26,7 @@ export default function Sidebar({
 }: SidebarProps) {
   const sections = [
     {
-      title: "Core Platform",
+      title: "ANALYSIS & AUDIT",
       items: [
         {
           name: "Dashboard",
@@ -33,8 +35,8 @@ export default function Sidebar({
         {
           name: "Bug Diagnosis",
           icon: Bug,
-          badge: "New",
-          badgeColor: "bg-[#0A84FF]/20 text-[#0A84FF] border border-[#0A84FF]/30",
+          badge: "Diagnostic",
+          badgeColor: "bg-blue-500/10 text-blue-400 border border-blue-500/20",
         },
         {
           name: "Repositories",
@@ -47,7 +49,7 @@ export default function Sidebar({
       ],
     },
     {
-      title: "Intelligence & Insights",
+      title: "INTELLIGENCE",
       items: [
         {
           name: "Architecture",
@@ -56,8 +58,8 @@ export default function Sidebar({
         {
           name: "AI Assistant",
           icon: Bot,
-          badge: "AI",
-          badgeColor: "bg-[#BF5AF2]/20 text-[#BF5AF2] border border-[#BF5AF2]/30",
+          badge: "LLM",
+          badgeColor: "bg-purple-500/10 text-purple-400 border border-purple-500/20",
         },
         {
           name: "Reports",
@@ -72,41 +74,34 @@ export default function Sidebar({
   ];
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-white/[0.08] bg-[#0c0d12]/80 backdrop-blur-2xl">
-      {/* Brand & macOS Window Controls */}
-      <div className="flex h-20 flex-col justify-center border-b border-white/[0.06] px-6">
-        {/* macOS Traffic Lights */}
-        <div className="flex items-center gap-2 mb-2.5">
-          <div className="h-3 w-3 rounded-full bg-[#FF5F56] border border-[#E0443E]/50" />
-          <div className="h-3 w-3 rounded-full bg-[#FFBD2E] border border-[#DEA123]/50" />
-          <div className="h-3 w-3 rounded-full bg-[#27C93F] border border-[#1AAB29]/50" />
-        </div>
-
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/95 backdrop-blur-md">
+      {/* Brand Header */}
+      <div className="flex h-16 items-center justify-between border-b border-zinc-800/80 px-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#0A84FF] to-[#5E5CE6] text-white shadow-md shadow-[#0A84FF]/20">
-            <Sparkles className="h-4 w-4" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 shadow-sm">
+            <Code2 className="h-4 w-4" />
           </div>
 
           <div>
-            <h1 className="text-sm font-semibold tracking-tight text-white">
+            <h1 className="text-sm font-bold tracking-tight text-white font-mono">
               RepoLens
             </h1>
-            <p className="text-[10px] text-[#86868b]">
-              Code Intelligence & Diagnostics
+            <p className="text-[10px] text-zinc-400 font-mono">
+              Code Intelligence v1.0
             </p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-6 overflow-y-auto px-4 py-6">
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
         {sections.map((section) => (
           <div key={section.title} className="space-y-1">
-            <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-[#86868b]/70">
+            <p className="px-3 text-[10px] font-semibold tracking-wider text-zinc-500 font-mono">
               {section.title}
             </p>
 
-            <div className="mt-2 space-y-1">
+            <div className="mt-1 space-y-0.5">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const isActive = activePage === item.name;
@@ -116,18 +111,18 @@ export default function Sidebar({
                     key={item.name}
                     type="button"
                     onClick={() => onNavigate(item.name)}
-                    className={`group flex w-full items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-medium transition-all ${
+                    className={`group flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
                       isActive
-                        ? "bg-white/[0.08] text-white shadow-sm"
-                        : "text-[#86868b] hover:bg-white/[0.04] hover:text-[#f5f5f7]"
+                        ? "bg-zinc-800/90 text-white border border-zinc-700/80 shadow-sm"
+                        : "text-zinc-400 hover:bg-zinc-900/80 hover:text-zinc-200"
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2.5">
                       <Icon
                         className={`h-4 w-4 transition-colors ${
                           isActive
-                            ? "text-[#0A84FF]"
-                            : "text-[#86868b] group-hover:text-[#f5f5f7]"
+                            ? "text-blue-400"
+                            : "text-zinc-500 group-hover:text-zinc-300"
                         }`}
                       />
                       <span>{item.name}</span>
@@ -135,7 +130,7 @@ export default function Sidebar({
 
                     {item.badge && (
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${item.badgeColor}`}
+                        className={`rounded px-1.5 py-0.2 text-[9px] font-mono font-semibold ${item.badgeColor}`}
                       >
                         {item.badge}
                       </span>
@@ -148,38 +143,38 @@ export default function Sidebar({
         ))}
       </nav>
 
-      {/* Bottom Section with System Status */}
-      <div className="border-t border-white/[0.06] p-4">
+      {/* Bottom Footer Section */}
+      <div className="border-t border-zinc-800/80 p-3 space-y-2">
         <button
           type="button"
           onClick={() => onNavigate("Settings")}
-          className={`mb-3 flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-xs font-medium transition ${
+          className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition ${
             activePage === "Settings"
-              ? "bg-white/[0.08] text-white"
-              : "text-[#86868b] hover:bg-white/[0.04] hover:text-white"
+              ? "bg-zinc-800 text-white"
+              : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
           }`}
         >
-          <Settings className="h-4 w-4" />
-          Settings
+          <Settings className="h-4 w-4 text-zinc-500" />
+          <span>Settings</span>
         </button>
 
-        {/* Apple-styled System Status Card */}
-        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-3 backdrop-blur-md">
+        {/* Engine Status Card */}
+        <div className="rounded-lg border border-zinc-800/80 bg-zinc-900/50 p-2.5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#30D158] opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#30D158]" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span className="text-[11px] font-medium text-[#f5f5f7]">
-                Engine Ready
+              <span className="text-[11px] font-mono font-medium text-zinc-300">
+                Engine Active
               </span>
             </div>
-            <span className="text-[9px] font-mono text-[#86868b]">FastAPI + Groq</span>
+            <Terminal className="h-3 w-3 text-zinc-500" />
           </div>
 
-          <p className="mt-1 text-[10px] text-[#86868b]">
-            Diagnostics & code scanners online
+          <p className="mt-1 text-[10px] text-zinc-400 font-mono">
+            FastAPI • AST Analyzer
           </p>
         </div>
       </div>
