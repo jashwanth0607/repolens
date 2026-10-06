@@ -7,7 +7,6 @@ import {
   User,
   Loader2,
   AlertCircle,
-  Terminal,
 } from "lucide-react";
 
 import type { Repository } from "../lib/types";
@@ -34,7 +33,7 @@ export default function AIAssistant({
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: `Hello! I am the RepoLens Assistant. I have indexed the static analysis results for ${repository.full_name}. Ask me about code quality, security findings, dependencies, or architectural improvements.`,
+      content: `Hello! I am the RepoLens Assistant. I can use the current analysis summary, scores, architecture, dependencies, and findings for ${repository.full_name}. Ask me what to fix first, how to interpret the score, or where the biggest risks are.`,
     },
   ]);
 
@@ -57,32 +56,19 @@ export default function AIAssistant({
     setLoading(true);
 
     try {
-      const repositoryContext = `
-Repository: ${repository.full_name}
-Description: ${repository.description || "No description available"}
-Language: ${repository.language || "Unknown"}
-Default Branch: ${repository.default_branch}
-Files Scanned: ${repository.files_scanned}
-Total Issues: ${repository.issues_found}
-High Severity Issues: ${repository.severity_counts.HIGH}
-Medium Severity Issues: ${repository.severity_counts.MEDIUM}
-Low Severity Issues: ${repository.severity_counts.LOW}
-Dependencies: Total ${repository.dependencies.total} (Python: ${repository.dependencies.python}, JS: ${repository.dependencies.javascript})
-`;
-
-      const response = await fetch(`${API_URL}/api/ai/explain`, {
+      const response = await fetch(`${API_URL}/api/ai/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          issue: {
-            severity: "LOW",
-            category: "Repository Assistant",
-            title: "Repository Question",
-            file: repository.name,
-            line: 1,
-            description: `User query on analyzed repository context:\n${repositoryContext}\nUser question:\n${trimmedQuestion}`,
-            suggestion: "Answer factually using the repository information.",
-          },
+          question: trimmedQuestion,
+          repository_context: buildRepositoryContext(repository),
+          history: messages
+            .slice(1)
+            .slice(-8)
+            .map((message) => ({
+              role: message.role,
+              content: message.content,
+            })),
         }),
       });
 
@@ -209,10 +195,10 @@ Dependencies: Total ${repository.dependencies.total} (Python: ${repository.depen
         </p>
 
         <div className="flex flex-wrap gap-2">
-          <Suggestion text="What are the critical security issues?" onClick={setQuestion} />
-          <Suggestion text="Explain the overall repository score" onClick={setQuestion} />
-          <Suggestion text="How can I improve maintainability?" onClick={setQuestion} />
-          <Suggestion text="Summarize the project dependencies" onClick={setQuestion} />
+          <Suggestion text="What should I fix first?" onClick={setQuestion} />
+          <Suggestion text="Explain the score breakdown" onClick={setQuestion} />
+          <Suggestion text="Prioritize the top security risks" onClick={setQuestion} />
+          <Suggestion text="Give me a remediation plan" onClick={setQuestion} />
         </div>
       </div>
 
@@ -244,6 +230,61 @@ Dependencies: Total ${repository.dependencies.total} (Python: ${repository.depen
       </form>
     </div>
   );
+}
+
+function buildRepositoryContext(repository: Repository) {
+  const prioritizedIssues = [...repository.issues]
+    .sort((a, b) => {
+      const rank = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+      return rank[a.severity] - rank[b.severity];
+    })
+    .slice(0, 15)
+    .map((issue) => ({
+      severity: issue.severity,
+      category: issue.category,
+      title: issue.title,
+      file: issue.file,
+      line: issue.line,
+      description: issue.description,
+      suggestion: issue.suggestion,
+      tool: issue.tool,
+    }));
+
+  return {
+    repository: {
+      name: repository.name,
+      full_name: repository.full_name,
+      description: repository.description,
+      default_branch: repository.default_branch,
+      language: repository.language,
+      html_url: repository.html_url,
+      stars: repository.stars,
+      forks: repository.forks,
+      open_issues: repository.open_issues,
+      private: repository.private,
+    },
+    scan_summary: {
+      files_scanned: repository.files_scanned,
+      issues_found: repository.issues_found,
+      severity_counts: repository.severity_counts,
+      category_counts: repository.category_counts,
+    },
+    dependencies: repository.dependencies,
+    scores: repository.scores ?? null,
+    architecture: repository.architecture
+      ? {
+          directories: repository.architecture.directories.slice(0, 25),
+          main_files: repository.architecture.main_files.slice(0, 25),
+          file_types: repository.architecture.file_types,
+        }
+      : null,
+    prioritized_issues: prioritizedIssues,
+    context_limits: {
+      prioritized_issues_included: prioritizedIssues.length,
+      total_issues_available: repository.issues.length,
+      note: "Only a bounded sample of findings is included in chat context.",
+    },
+  };
 }
 
 function Suggestion({ text, onClick }: { text: string; onClick: (text: string) => void }) {

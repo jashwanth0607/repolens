@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import {
   Bot,
   FileText,
@@ -41,7 +41,9 @@ export default function Home() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        setRepository(JSON.parse(saved) as Repository);
+        startTransition(() => {
+          setRepository(JSON.parse(saved) as Repository);
+        });
       }
     } catch (error) {
       console.error("Failed to load stored repository:", error);
@@ -311,7 +313,7 @@ export default function Home() {
               <EmptyState
                 icon={<FileText className="h-8 w-8 text-zinc-400" />}
                 title="No Report Generated"
-                description="Scan a repository to generate technical markdown reports."
+                description="Scan a repository to generate a downloadable PDF technical report."
                 onClick={() => setActivePage("Repositories")}
                 buttonText="Connect Repository"
               />

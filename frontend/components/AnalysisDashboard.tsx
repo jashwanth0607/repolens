@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 
 import type {
+  CategoryScore,
   Issue,
   IssueFilter,
   Repository,
@@ -304,7 +305,7 @@ export default function AnalysisDashboard({
   );
 }
 
-function CategoryScoreCard({ title, score }: { title: string; score: any }) {
+function CategoryScoreCard({ title, score }: { title: string; score: CategoryScore }) {
   return (
     <div className="rounded-xl border border-zinc-800/80 bg-zinc-900/40 p-4 backdrop-blur-sm flex flex-col justify-between">
       <div className="flex justify-center py-2">

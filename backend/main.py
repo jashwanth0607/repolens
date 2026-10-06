@@ -6,7 +6,7 @@ import json
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from services.dependency_analyzer import DependencyAnalyzer
 from services.groq_service import GroqService
@@ -51,6 +51,12 @@ class RepositoryRequest(BaseModel):
 
 class IssueAIRequest(BaseModel):
     issue: dict
+
+
+class RepositoryChatRequest(BaseModel):
+    question: str
+    repository_context: dict
+    history: list[dict] = Field(default_factory=list)
 
 
 groq_service = GroqService()
@@ -138,6 +144,44 @@ def generate_fix(
     try:
         answer = groq_service.generate_fix(
             request.issue
+        )
+
+        return {
+            "success": True,
+            "answer": answer,
+            "model": groq_service.model,
+        }
+
+    except RuntimeError as error:
+        raise HTTPException(
+            status_code=503,
+            detail=str(error),
+        )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Unexpected AI error: {error}",
+        )
+
+
+@app.post("/api/ai/chat")
+def chat_about_repository(
+    request: RepositoryChatRequest,
+):
+    question = request.question.strip()
+
+    if not question:
+        raise HTTPException(
+            status_code=400,
+            detail="Question is required.",
+        )
+
+    try:
+        answer = groq_service.chat_about_repository(
+            question=question,
+            repository_context=request.repository_context,
+            history=request.history,
         )
 
         return {

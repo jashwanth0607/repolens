@@ -357,7 +357,7 @@ export default function BugInvestigator({
         }
       );
 
-      let data: any = null;
+      let data: { success?: boolean; diagnosis?: DiagnosisResult; detail?: string; message?: string } | null = null;
 
       try {
         data = await response.json();
