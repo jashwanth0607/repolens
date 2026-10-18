@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 
@@ -163,6 +164,62 @@ class GroqService:
 
         return self._extract_answer(response)
 
+    def chat_about_repository(
+        self,
+        question: str,
+        repository_context: dict,
+        history: list[dict] | None = None,
+    ) -> str:
+        self._check_configuration()
+
+        prompt = self._build_repository_chat_prompt(
+            question=question,
+            repository_context=repository_context,
+            history=history or [],
+        )
+
+        try:
+            response = (
+                self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are RepoLens, a senior "
+                                "software architecture and code "
+                                "review assistant. Answer the "
+                                "developer's repository questions "
+                                "using only the supplied RepoLens "
+                                "analysis context. Be specific, "
+                                "evidence-backed, and helpful. "
+                                "If the supplied context is not "
+                                "enough to know something, say what "
+                                "is missing instead of inventing it. "
+                                "Prefer structured answers with "
+                                "priorities, rationale, and concrete "
+                                "next steps."
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt,
+                        },
+                    ],
+                    temperature=0.25,
+                    max_completion_tokens=2400,
+                    include_reasoning=False,
+                    stream=False,
+                )
+            )
+
+        except Exception as error:
+            raise RuntimeError(
+                self._format_error(error)
+            ) from error
+
+        return self._extract_answer(response)
+
     def _extract_answer(
         self,
         response,
@@ -172,7 +229,8 @@ class GroqService:
                 "Groq returned no choices."
             )
 
-        message = response.choices[0].message
+        choice = response.choices[0]
+        message = choice.message
 
         content = getattr(
             message,
@@ -181,7 +239,21 @@ class GroqService:
         )
 
         if content:
-            return content.strip()
+            answer = content.strip()
+            finish_reason = getattr(
+                choice,
+                "finish_reason",
+                None,
+            )
+
+            if finish_reason == "length":
+                answer += (
+                    "\n\nNote: the model reached its response "
+                    "limit before finishing. Ask a narrower "
+                    "follow-up question for more detail."
+                )
+
+            return answer
 
         reasoning = getattr(
             message,
@@ -301,4 +373,69 @@ Provide:
 4. Verification steps
 
 Do not claim that you modified the repository.
+"""
+
+    def _build_repository_chat_prompt(
+        self,
+        question: str,
+        repository_context: dict,
+        history: list[dict],
+    ) -> str:
+        context_json = json.dumps(
+            repository_context,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+        clean_history = []
+
+        for message in history[-8:]:
+            role = message.get("role")
+            content = message.get("content")
+
+            if role not in {"user", "assistant"}:
+                continue
+
+            if not isinstance(content, str):
+                continue
+
+            content = content.strip()
+
+            if not content:
+                continue
+
+            clean_history.append(
+                {
+                    "role": role,
+                    "content": content[:2000],
+                }
+            )
+
+        history_json = json.dumps(
+            clean_history,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+        return f"""
+A developer is asking about a repository that RepoLens analyzed.
+Use the analysis context below as your source of truth.
+
+Repository analysis context:
+{context_json}
+
+Recent conversation history:
+{history_json}
+
+Current question:
+{question}
+
+Answer requirements:
+- Answer the current question directly.
+- Use concrete repository facts from the supplied context.
+- Explain why your recommendations matter.
+- Prioritize the most important actions when there are multiple findings.
+- Include practical next steps the developer can take.
+- If the context does not include source code or details needed to answer, say exactly what is missing.
+- Do not claim you inspected files that are not represented in the supplied context.
 """
