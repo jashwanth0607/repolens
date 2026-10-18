@@ -44,3 +44,79 @@ export type IssueFilter =
   | "HIGH"
   | "MEDIUM"
   | "LOW";
+
+export type BugReport = {
+  title: string;
+  description: string;
+  error_message: string;
+  stack_trace: string;
+  environment: string;
+};
+
+export type TestContext = {
+  test_name: string;
+  test_code: string;
+  failing_assertion: string;
+  test_output: string;
+  framework: string;
+};
+
+export type CulpritFile = {
+  file_path: string;
+  line_start: number;
+  line_end: number;
+  culprit_code: string;
+  explanation: string;
+  symbol_name?: string;
+};
+
+export type TraceStep = {
+  step_number: number;
+  phase: string;
+  location: string;
+  description: string;
+  code_snippet?: string;
+};
+
+export type TestCorrelation = {
+  test_name: string;
+  assertion_failed: string;
+  expected_behavior: string;
+  actual_behavior: string;
+  trigger_input: string;
+  explanation: string;
+};
+
+export type PatchSuggestion = {
+  file_path: string;
+  diff: string;
+  explanation: string;
+  before_code: string;
+  after_code: string;
+};
+
+export type DiagnosisResult = {
+  investigation_id: string;
+  summary: string;
+  root_cause: string;
+  confidence_score: number;
+  confidence_level: "High" | "Medium" | "Low";
+  confidence_rationale: string;
+  culprit_files: CulpritFile[];
+  test_correlation: TestCorrelation;
+  execution_trace: TraceStep[];
+  patch: PatchSuggestion;
+  regression_test: string;
+  prevention_guidelines: string[];
+  impact_assessment: string;
+};
+
+export type InvestigationScenario = {
+  id: string;
+  title: string;
+  category: string;
+  repo_name: string;
+  bug_report: BugReport;
+  test_context: TestContext;
+  repository_files?: Record<string, string>;
+};

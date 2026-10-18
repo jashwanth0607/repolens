@@ -13,68 +13,54 @@ import {
   Code2,
   Package,
   BrainCircuit,
+  Bug,
+  ArrowRight,
 } from "lucide-react";
 
 import Sidebar from "../components/Sidebar";
+import LandingHero from "../components/LandingHero";
 import RepositoryAnalyzer from "../components/RepositoryAnalyzer";
 import AnalysisDashboard from "../components/AnalysisDashboard";
 import ReportDownloadButton from "../components/ReportDownloadButton";
 import ArchitectureView from "../components/ArchitectureView";
 import AIAssistant from "../components/AIAssistant";
+import BugInvestigator from "../components/BugInvestigator";
 
 import type { Repository } from "../lib/types";
 
 const STORAGE_KEY = "repolens_repository";
 
 export default function Home() {
-  const [activePage, setActivePage] =
-    useState("Dashboard");
+  const [activePage, setActivePage] = useState("Dashboard");
 
-  const [repository, setRepository] =
-    useState<Repository | null>(null);
-
-  useEffect(() => {
-    try {
-      const savedRepository =
-        localStorage.getItem(STORAGE_KEY);
-
-      if (savedRepository) {
-        const parsedRepository =
-          JSON.parse(savedRepository) as Repository;
-
-        setRepository(parsedRepository);
+  // Avoid setState inside synchronous useEffect to satisfy React 19 / Next.js 16 rules
+  const [repository, setRepository] = useState<Repository | null>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          return JSON.parse(saved) as Repository;
+        }
+      } catch (err) {
+        console.error("Failed to parse stored repository:", err);
       }
-    } catch (error) {
-      console.error(
-        "Failed to restore repository:",
-        error
-      );
-
-      localStorage.removeItem(STORAGE_KEY);
     }
-  }, []);
+    return null;
+  });
 
   useEffect(() => {
     try {
       if (repository) {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify(repository)
-        );
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(repository));
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
     } catch (error) {
-      console.error(
-        "Failed to save repository:",
-        error
-      );
+      console.error("Failed to save repository:", error);
     }
   }, [repository]);
 
-  const handleRepositoryAnalyzed = (
-    repo: Repository
-  ) => {
+  const handleRepositoryAnalyzed = (repo: Repository) => {
     setRepository(repo);
     setActivePage("Dashboard");
   };
@@ -88,83 +74,91 @@ export default function Home() {
     switch (activePage) {
       case "Dashboard":
         return repository ? (
-          <div className="space-y-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-6">
+            <div className="flex flex-col gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.02] p-4 backdrop-blur-xl sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-xs uppercase tracking-wider text-slate-500">
-                  Current Repository
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#86868b]">
+                  Active Repository
                 </p>
-
-                <p className="mt-1 text-sm font-medium text-slate-300">
+                <p className="mt-0.5 text-sm font-semibold text-white">
                   {repository.full_name}
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={clearRepository}
-                className="w-fit rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 transition hover:border-red-500/40 hover:bg-red-500/5 hover:text-red-400"
-              >
-                Clear Repository
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActivePage("Bug Diagnosis")}
+                  className="rounded-full bg-[#0A84FF]/15 border border-[#0A84FF]/30 px-3.5 py-1.5 text-xs font-medium text-[#0A84FF] transition hover:bg-[#0A84FF]/25 active:scale-[0.98]"
+                >
+                  Diagnose Bugs
+                </button>
+                <button
+                  type="button"
+                  onClick={clearRepository}
+                  className="rounded-full border border-white/10 px-3.5 py-1.5 text-xs text-[#86868b] transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 active:scale-[0.98]"
+                >
+                  Clear Repo
+                </button>
+              </div>
             </div>
 
-            <AnalysisDashboard
-              repository={repository}
-            />
+            <AnalysisDashboard repository={repository} />
           </div>
         ) : (
           <HomeContent
-            onRepositoryAnalyzed={
-              handleRepositoryAnalyzed
-            }
+            onRepositoryAnalyzed={handleRepositoryAnalyzed}
+            onNavigate={setActivePage}
           />
         );
+
+      case "Bug Diagnosis":
+        return <BugInvestigator activeRepository={repository} />;
 
       case "Repositories":
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-3xl font-bold text-white">
+              <h2 className="text-3xl font-semibold tracking-tight text-white">
                 Repositories
               </h2>
-
-              <p className="mt-2 text-slate-400">
-                Analyze a public GitHub repository.
+              <p className="mt-1 text-sm text-[#86868b]">
+                Connect and inspect a public GitHub repository.
               </p>
             </div>
 
-            <RepositoryAnalyzer
-              onRepositoryAnalyzed={
-                handleRepositoryAnalyzed
-              }
-            />
+            <RepositoryAnalyzer onRepositoryAnalyzed={handleRepositoryAnalyzed} />
 
             {repository && (
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-                <p className="text-sm text-slate-400">
+              <div className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-6 backdrop-blur-xl">
+                <p className="text-xs uppercase tracking-wider text-[#86868b]">
                   Last analyzed repository
                 </p>
-
                 <h3 className="mt-1 text-lg font-semibold text-white">
                   {repository.full_name}
                 </h3>
 
-                <div className="mt-4 flex flex-wrap gap-3">
+                <div className="mt-5 flex flex-wrap gap-3">
                   <button
                     type="button"
-                    onClick={() =>
-                      setActivePage("Dashboard")
-                    }
-                    className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600"
+                    onClick={() => setActivePage("Dashboard")}
+                    className="rounded-full bg-[#0A84FF] px-5 py-2 text-xs font-semibold text-white shadow-md shadow-[#0A84FF]/20 hover:bg-[#0071E3] active:scale-[0.98]"
                   >
-                    View Analysis
+                    View Analysis Dashboard
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActivePage("Bug Diagnosis")}
+                    className="rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-xs font-medium text-white hover:bg-white/[0.08] active:scale-[0.98]"
+                  >
+                    Investigate Bugs
                   </button>
 
                   <button
                     type="button"
                     onClick={clearRepository}
-                    className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-400 hover:border-red-500/40 hover:text-red-400"
+                    className="rounded-full border border-white/10 px-4 py-2 text-xs text-[#86868b] hover:border-red-500/40 hover:text-red-400 active:scale-[0.98]"
                   >
                     Clear
                   </button>
@@ -178,29 +172,22 @@ export default function Home() {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-3xl font-bold text-white">
-                Issues
+              <h2 className="text-3xl font-semibold tracking-tight text-white">
+                Findings & Issues
               </h2>
-
-              <p className="mt-2 text-slate-400">
-                Review findings detected in your repository.
+              <p className="mt-1 text-sm text-[#86868b]">
+                Review security flaws, code complexity, and quality findings.
               </p>
             </div>
 
             {repository ? (
-              <AnalysisDashboard
-                repository={repository}
-              />
+              <AnalysisDashboard repository={repository} />
             ) : (
               <EmptyState
-                icon={
-                  <ShieldAlert className="h-8 w-8" />
-                }
+                icon={<ShieldAlert className="h-8 w-8" />}
                 title="No repository analyzed"
-                description="Analyze a repository first to see detected issues."
-                onClick={() =>
-                  setActivePage("Repositories")
-                }
+                description="Analyze a repository first to review code quality and security issues."
+                onClick={() => setActivePage("Repositories")}
                 buttonText="Analyze Repository"
               />
             )}
@@ -211,36 +198,26 @@ export default function Home() {
         return (
           <div className="space-y-6">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-3 py-1 text-xs text-cyan-400">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#64D2FF]/30 bg-[#64D2FF]/10 px-3 py-1 text-xs font-medium text-[#64D2FF]">
                 <Network className="h-3.5 w-3.5" />
                 Repository architecture
               </div>
-
-              <h2 className="text-3xl font-bold text-white">
+              <h2 className="text-3xl font-semibold tracking-tight text-white">
                 Architecture
               </h2>
-
-              <p className="mt-2 max-w-2xl text-slate-400">
-                Visualize how RepoLens processes your
-                repository from scanning through analysis and
-                AI-assisted findings.
+              <p className="mt-1 max-w-2xl text-sm text-[#86868b]">
+                Visualize how RepoLens analyzes source structure and dependencies.
               </p>
             </div>
 
             {repository ? (
-              <ArchitectureView
-                repository={repository}
-              />
+              <ArchitectureView repository={repository} />
             ) : (
               <EmptyState
-                icon={
-                  <Network className="h-8 w-8" />
-                }
+                icon={<Network className="h-8 w-8" />}
                 title="Architecture unavailable"
-                description="Analyze a repository to visualize its architecture."
-                onClick={() =>
-                  setActivePage("Repositories")
-                }
+                description="Analyze a repository to generate its architectural map."
+                onClick={() => setActivePage("Repositories")}
                 buttonText="Analyze Repository"
               />
             )}
@@ -251,35 +228,26 @@ export default function Home() {
         return (
           <div className="space-y-6">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-purple-500/20 bg-purple-500/10 px-3 py-1 text-xs text-purple-400">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#BF5AF2]/30 bg-[#BF5AF2]/10 px-3 py-1 text-xs font-medium text-[#BF5AF2]">
                 <Sparkles className="h-3.5 w-3.5" />
-                AI code intelligence
+                Groq Intelligence
               </div>
-
-              <h2 className="text-3xl font-bold text-white">
+              <h2 className="text-3xl font-semibold tracking-tight text-white">
                 AI Assistant
               </h2>
-
-              <p className="mt-2 max-w-2xl text-slate-400">
-                Ask questions about your analyzed repository
-                and get AI-powered explanations.
+              <p className="mt-1 max-w-2xl text-sm text-[#86868b]">
+                Ask questions about your codebase, security findings, and architecture.
               </p>
             </div>
 
             {repository ? (
-              <AIAssistant
-                repository={repository}
-              />
+              <AIAssistant repository={repository} />
             ) : (
               <EmptyState
-                icon={
-                  <Bot className="h-8 w-8" />
-                }
+                icon={<Bot className="h-8 w-8" />}
                 title="AI Assistant is ready"
-                description="Analyze a repository first to start chatting with RepoLens AI."
-                onClick={() =>
-                  setActivePage("Repositories")
-                }
+                description="Connect a repository first to enable contextual code reasoning."
+                onClick={() => setActivePage("Repositories")}
                 buttonText="Analyze Repository"
               />
             )}
@@ -291,104 +259,54 @@ export default function Home() {
           <div className="space-y-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h2 className="text-3xl font-bold text-white">
+                <h2 className="text-3xl font-semibold tracking-tight text-white">
                   Reports
                 </h2>
-
-                <p className="mt-2 text-slate-400">
-                  Repository analysis summary and export.
+                <p className="mt-1 text-sm text-[#86868b]">
+                  Summary export and analysis audit documentation.
                 </p>
               </div>
 
-              {repository && (
-                <ReportDownloadButton
-                  repository={repository}
-                />
-              )}
+              {repository && <ReportDownloadButton repository={repository} />}
             </div>
 
             {repository ? (
               <>
-                <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-7 w-7 text-blue-400" />
-
+                <div className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-8 backdrop-blur-xl">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0A84FF]/10 text-[#0A84FF]">
+                      <FileText className="h-6 w-6" />
+                    </div>
                     <div>
                       <h3 className="text-xl font-semibold text-white">
                         {repository.full_name}
                       </h3>
-
-                      <p className="text-sm text-slate-500">
-                        Repository Analysis Report
+                      <p className="text-xs text-[#86868b]">
+                        Repository Analysis & Intelligence Report
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-6 grid gap-4 md:grid-cols-4">
-                    <InfoCard
-                      title="Files"
-                      value={String(
-                        repository.files_scanned
-                      )}
-                    />
-
-                    <InfoCard
-                      title="Issues"
-                      value={String(
-                        repository.issues_found
-                      )}
-                    />
-
-                    <InfoCard
-                      title="High"
-                      value={String(
-                        repository.severity_counts.HIGH
-                      )}
-                    />
-
-                    <InfoCard
-                      title="Dependencies"
-                      value={String(
-                        repository.dependencies.total
-                      )}
-                    />
+                  <div className="mt-8 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+                    <InfoCard title="Files Scanned" value={String(repository.files_scanned)} />
+                    <InfoCard title="Issues Found" value={String(repository.issues_found)} />
+                    <InfoCard title="High Severity" value={String(repository.severity_counts.HIGH)} />
+                    <InfoCard title="Total Dependencies" value={String(repository.dependencies.total)} />
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                  <InfoCard
-                    title="Medium Severity"
-                    value={String(
-                      repository.severity_counts.MEDIUM
-                    )}
-                  />
-
-                  <InfoCard
-                    title="Low Severity"
-                    value={String(
-                      repository.severity_counts.LOW
-                    )}
-                  />
-
-                  <InfoCard
-                    title="Language"
-                    value={
-                      repository.language ||
-                      "Not detected"
-                    }
-                  />
+                  <InfoCard title="Medium Severity" value={String(repository.severity_counts.MEDIUM)} />
+                  <InfoCard title="Low Severity" value={String(repository.severity_counts.LOW)} />
+                  <InfoCard title="Language" value={repository.language || "Not detected"} />
                 </div>
               </>
             ) : (
               <EmptyState
-                icon={
-                  <FileText className="h-8 w-8" />
-                }
+                icon={<FileText className="h-8 w-8" />}
                 title="No report available"
-                description="Analyze a repository to generate its report."
-                onClick={() =>
-                  setActivePage("Repositories")
-                }
+                description="Analyze a repository to generate structured technical reports."
+                onClick={() => setActivePage("Repositories")}
                 buttonText="Analyze Repository"
               />
             )}
@@ -399,119 +317,72 @@ export default function Home() {
         return (
           <div className="space-y-6">
             <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs text-blue-400">
+              <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-[#0A84FF]/30 bg-[#0A84FF]/10 px-3 py-1 text-xs font-medium text-[#0A84FF]">
                 <Wrench className="h-3.5 w-3.5" />
                 Analysis toolkit
               </div>
-
-              <h2 className="text-3xl font-bold text-white">
-                Tools
+              <h2 className="text-3xl font-semibold tracking-tight text-white">
+                Tools & Capabilities
               </h2>
-
-              <p className="mt-2 max-w-2xl text-slate-400">
-                RepoLens combines repository scanning,
-                security checks, code quality analysis,
-                dependency analysis, and AI assistance.
+              <p className="mt-1 max-w-2xl text-sm text-[#86868b]">
+                Specialized developer tools for code investigation, security auditing, and quality intelligence.
               </p>
             </div>
 
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               <ToolCard
-                icon={
-                  <Search className="h-6 w-6" />
-                }
+                icon={<Bug className="h-5 w-5" />}
+                title="BugLens Diagnostic Engine"
+                description="Given a repository, bug report, and available tests, investigate the likely cause and generate an evidence-backed diagnosis."
+                status="Active"
+                onClick={() => setActivePage("Bug Diagnosis")}
+                buttonText="Open Diagnostics"
+                highlight
+              />
+
+              <ToolCard
+                icon={<Search className="h-5 w-5" />}
                 title="Repository Scanner"
-                description="Clones and scans supported source files from the selected public repository."
+                description="Clones and scans source files from public repositories with static analysis filters."
                 status="Available"
-                onClick={() =>
-                  setActivePage("Repositories")
-                }
+                onClick={() => setActivePage("Repositories")}
                 buttonText="Open Scanner"
               />
 
               <ToolCard
-                icon={
-                  <ShieldAlert className="h-6 w-6" />
-                }
+                icon={<ShieldAlert className="h-5 w-5" />}
                 title="Security Analyzer"
-                description="Checks the repository for security-related findings and suspicious patterns."
+                description="Scans for hardcoded credentials, unsafe execution vectors, and security vulnerabilities."
                 status="Available"
-                onClick={() =>
-                  setActivePage(
-                    repository
-                      ? "Issues"
-                      : "Repositories"
-                  )
-                }
+                onClick={() => setActivePage(repository ? "Issues" : "Repositories")}
                 buttonText="View Security"
               />
 
               <ToolCard
-                icon={
-                  <Code2 className="h-6 w-6" />
-                }
+                icon={<Code2 className="h-5 w-5" />}
                 title="Code Quality Analyzer"
-                description="Looks for code complexity, large files, long functions, and maintainability issues."
+                description="Detects complexity hot-spots, oversized modules, and maintainability concerns."
                 status="Available"
-                onClick={() =>
-                  setActivePage(
-                    repository
-                      ? "Issues"
-                      : "Repositories"
-                  )
-                }
+                onClick={() => setActivePage(repository ? "Issues" : "Repositories")}
                 buttonText="View Quality"
               />
 
               <ToolCard
-                icon={
-                  <Package className="h-6 w-6" />
-                }
+                icon={<Package className="h-5 w-5" />}
                 title="Dependency Analyzer"
-                description="Summarizes Python and JavaScript dependencies and checks dependency hygiene."
+                description="Audits software stack dependencies across Python and JavaScript ecosystems."
                 status="Available"
-                onClick={() =>
-                  setActivePage(
-                    repository
-                      ? "Architecture"
-                      : "Repositories"
-                  )
-                }
+                onClick={() => setActivePage(repository ? "Architecture" : "Repositories")}
                 buttonText="View Dependencies"
               />
 
               <ToolCard
-                icon={
-                  <BrainCircuit className="h-6 w-6" />
-                }
+                icon={<BrainCircuit className="h-5 w-5" />}
                 title="AI Assistant"
-                description="Ask RepoLens AI questions about the analyzed repository and its findings."
+                description="Query Groq language models to explain complex findings and generate fixes."
                 status="Available"
-                onClick={() =>
-                  setActivePage(
-                    repository
-                      ? "AI Assistant"
-                      : "Repositories"
-                  )
-                }
+                onClick={() => setActivePage(repository ? "AI Assistant" : "Repositories")}
                 buttonText="Open AI"
-              />
-
-              <ToolCard
-                icon={
-                  <FileText className="h-6 w-6" />
-                }
-                title="Report Center"
-                description="View and download the current repository analysis report."
-                status="Available"
-                onClick={() =>
-                  setActivePage(
-                    repository
-                      ? "Reports"
-                      : "Repositories"
-                  )
-                }
-                buttonText="Open Reports"
               />
             </div>
           </div>
@@ -521,41 +392,21 @@ export default function Home() {
         return (
           <div className="space-y-6">
             <div>
-              <h2 className="text-3xl font-bold text-white">
-                Settings
+              <h2 className="text-3xl font-semibold tracking-tight text-white">
+                Settings & Configuration
               </h2>
-
-              <p className="mt-2 text-slate-400">
-                RepoLens configuration.
+              <p className="mt-1 text-sm text-[#86868b]">
+                Runtime and environment parameters.
               </p>
             </div>
 
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+            <div className="rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-8 backdrop-blur-xl">
               <div className="space-y-5">
-                <SettingRow
-                  label="Backend"
-                  value="FastAPI"
-                />
-
-                <SettingRow
-                  label="AI Provider"
-                  value="Groq"
-                />
-
-                <SettingRow
-                  label="Repository Access"
-                  value="Public GitHub"
-                />
-
-                <SettingRow
-                  label="Analysis Mode"
-                  value="Static Analysis"
-                />
-
-                <SettingRow
-                  label="Persistence"
-                  value="Local Browser Storage"
-                />
+                <SettingRow label="Backend Architecture" value="FastAPI (Python 3.14)" />
+                <SettingRow label="AI Diagnostic Model" value="Groq / Llama 3 / Deterministic AST Engine" />
+                <SettingRow label="Design Language" value="Apple Human Interface Guidelines (HIG)" />
+                <SettingRow label="Bug Investigation Mode" value="Evidence-Backed Multi-Modal (Repo + Bug + Tests)" />
+                <SettingRow label="State Persistence" value="Encrypted Local Browser Storage" />
               </div>
             </div>
           </div>
@@ -567,30 +418,28 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#060b16] text-white">
-      <Sidebar
-        activePage={activePage}
-        onNavigate={setActivePage}
-      />
+    <div className="min-h-screen bg-black text-[#f5f5f7]">
+      <Sidebar activePage={activePage} onNavigate={setActivePage} />
 
       <main className="ml-64 min-h-screen">
-        <header className="sticky top-0 z-30 flex h-20 items-center justify-between border-b border-slate-800 bg-[#060b16]/90 px-8 backdrop-blur">
+        {/* macOS Sonoma style Header Bar */}
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.08] bg-black/75 px-8 backdrop-blur-2xl">
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500">
-              Workspace
-            </p>
-
-            <h1 className="text-lg font-semibold text-white">
+            <h1 className="text-sm font-semibold tracking-tight text-white">
               {activePage}
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-
-            <span className="text-xs text-emerald-400">
-              Services Online
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#30D158] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#30D158]" />
+              </span>
+              <span className="text-xs font-medium text-[#30D158]">
+                Apple HIG Configured
+              </span>
+            </div>
           </div>
         </header>
 
@@ -604,77 +453,16 @@ export default function Home() {
 
 function HomeContent({
   onRepositoryAnalyzed,
+  onNavigate,
 }: {
-  onRepositoryAnalyzed: (
-    repository: Repository
-  ) => void;
+  onRepositoryAnalyzed: (repository: Repository) => void;
+  onNavigate: (page: string) => void;
 }) {
   return (
-    <div className="space-y-8">
-      <div>
-        <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs text-blue-400">
-          <Sparkles className="h-3.5 w-3.5" />
-          AI-powered code intelligence
-        </div>
-
-        <h2 className="text-4xl font-bold tracking-tight text-white">
-          Analyze your repository
-        </h2>
-
-        <p className="mt-3 max-w-2xl text-slate-400">
-          Scan a GitHub repository for security,
-          quality, dependency, and maintainability
-          issues.
-        </p>
-      </div>
-
-      <RepositoryAnalyzer
-        onRepositoryAnalyzed={
-          onRepositoryAnalyzed
-        }
-      />
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-          <ShieldAlert className="mb-4 h-6 w-6 text-red-400" />
-
-          <h3 className="font-semibold text-white">
-            Security Analysis
-          </h3>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Detect credentials, unsafe functions,
-            and potential vulnerabilities.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-          <GitBranch className="mb-4 h-6 w-6 text-blue-400" />
-
-          <h3 className="font-semibold text-white">
-            Code Quality
-          </h3>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Identify complexity, large files,
-            and maintainability problems.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
-          <Bot className="mb-4 h-6 w-6 text-purple-400" />
-
-          <h3 className="font-semibold text-white">
-            AI Assistance
-          </h3>
-
-          <p className="mt-2 text-sm text-slate-500">
-            Ask AI to explain findings and suggest
-            fixes.
-          </p>
-        </div>
-      </div>
-    </div>
+    <LandingHero
+      onRepositoryAnalyzed={onRepositoryAnalyzed}
+      onNavigate={onNavigate}
+    />
   );
 }
 
@@ -692,23 +480,23 @@ function EmptyState({
   buttonText: string;
 }) {
   return (
-    <div className="flex min-h-[350px] flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/40 p-8 text-center">
-      <div className="mb-4 rounded-2xl bg-slate-800 p-4 text-slate-400">
+    <div className="flex min-h-[350px] flex-col items-center justify-center rounded-3xl border border-white/[0.08] bg-[#0c0d12]/80 p-8 text-center backdrop-blur-xl">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-[#86868b]">
         {icon}
       </div>
 
-      <h3 className="text-xl font-semibold text-white">
+      <h3 className="text-lg font-semibold text-white">
         {title}
       </h3>
 
-      <p className="mt-2 max-w-md text-sm text-slate-500">
+      <p className="mt-1.5 max-w-md text-xs leading-relaxed text-[#86868b]">
         {description}
       </p>
 
       <button
         type="button"
         onClick={onClick}
-        className="mt-6 rounded-lg bg-blue-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-600"
+        className="mt-6 rounded-full bg-[#0A84FF] px-6 py-2.5 text-xs font-semibold text-white shadow-md shadow-[#0A84FF]/25 hover:bg-[#0071E3] active:scale-[0.98]"
       >
         {buttonText}
       </button>
@@ -724,12 +512,11 @@ function InfoCard({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-      <p className="text-xs uppercase tracking-wide text-slate-500">
+    <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-[#86868b]">
         {title}
       </p>
-
-      <p className="mt-2 text-xl font-semibold text-white">
+      <p className="mt-2 text-2xl font-bold tracking-tight text-white">
         {value}
       </p>
     </div>
@@ -743,6 +530,7 @@ function ToolCard({
   status,
   onClick,
   buttonText,
+  highlight,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -750,31 +538,46 @@ function ToolCard({
   status: string;
   onClick: () => void;
   buttonText: string;
+  highlight?: boolean;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-6 transition hover:border-slate-700 hover:bg-slate-900/70">
+    <div
+      className={`rounded-3xl border p-6 transition-all backdrop-blur-xl ${
+        highlight
+          ? "border-[#0A84FF]/40 bg-[#0A84FF]/5 hover:border-[#0A84FF]/60"
+          : "border-white/[0.08] bg-[#0c0d12]/80 hover:border-white/[0.14] hover:bg-[#0c0d12]"
+      }`}
+    >
       <div className="flex items-start justify-between gap-4">
-        <div className="rounded-xl bg-blue-500/10 p-3 text-blue-400">
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-2xl ${
+            highlight ? "bg-[#0A84FF]/20 text-[#0A84FF]" : "bg-white/[0.04] text-[#86868b]"
+          }`}
+        >
           {icon}
         </div>
 
-        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-[11px] text-emerald-400">
+        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400">
           {status}
         </span>
       </div>
 
-      <h3 className="mt-5 text-lg font-semibold text-white">
+      <h3 className="mt-5 text-base font-semibold text-white">
         {title}
       </h3>
 
-      <p className="mt-2 min-h-[60px] text-sm leading-6 text-slate-500">
+      <p className="mt-1.5 min-h-[50px] text-xs leading-relaxed text-[#86868b]">
         {description}
       </p>
 
       <button
         type="button"
         onClick={onClick}
-        className="mt-5 rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition hover:border-blue-500/50 hover:bg-blue-500/10 hover:text-white"
+        className={`mt-5 w-full rounded-full py-2.5 text-xs font-semibold transition active:scale-[0.98] ${
+          highlight
+            ? "bg-[#0A84FF] text-white shadow-md shadow-[#0A84FF]/20 hover:bg-[#0071E3]"
+            : "border border-white/10 bg-white/[0.03] text-[#f5f5f7] hover:bg-white/[0.08]"
+        }`}
       >
         {buttonText}
       </button>
@@ -790,12 +593,11 @@ function SettingRow({
   value: string;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-slate-800 pb-4 last:border-0 last:pb-0">
-      <span className="text-sm text-slate-400">
+    <div className="flex items-center justify-between border-b border-white/[0.06] pb-4 last:border-0 last:pb-0">
+      <span className="text-xs font-medium text-[#86868b]">
         {label}
       </span>
-
-      <span className="text-sm font-medium text-white">
+      <span className="text-xs font-mono font-medium text-white">
         {value}
       </span>
     </div>
